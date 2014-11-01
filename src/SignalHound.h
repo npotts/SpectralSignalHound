@@ -50,23 +50,23 @@ namespace SignalHound {
 
   //Initial Configuration of the Signal Hound
   struct configOpts {
-    double attenuation;
-    int mixerBand;  //set to 1 to work with freq below 150MHz.  0 (default) works above 150MHz
-    int sensitivity; //0=lowest, 2=highest
-    int decimation; //decimation level.  Affects RBW
-    int iflo_path; //0 = use 10.7MHz IF LO, 1 = use 2.9MHz IF LO.
-    int adcclk_path; //0 = ADC uses a 23-1/3MHz clock, 1 = ADC uses a 22.5MHz clock.
-    int deviceid; //device ID, 0-7, seems to be disabled in the linux API
-    bool docal; //if true, the following cal data will be used for calculations
-    unsigned char caldata[4096]; //cal data to use for calculations
-    bool preset;  //attempt to preset the Signal hound after configuring
-    bool ext_ref; //attempt to configure a 10MHz input clock
-    bool preamp; //attempt to init preamp (SA44B only)
-    int ext_trigger; //set trigger to external, freerunning, or pulsed output
+    double attenuation; /*!< Attenuation.  Values should be 0, 5, 10, or 15 */
+    int mixerBand;  /*!< Set to 1 to work with freq above 150MHz.  0 (default) works below 150MHz */
+    int sensitivity; /*!< Set the sensitivity 0=lowest, 2=highest */
+    int decimation; /*!< Decimation level.  Affects RBW */
+    int iflo_path; /*!< Set the IL LO path. 0 = use 10.7MHz IF LO, 1 = use 2.9MHz IF LO. */
+    int adcclk_path; /*!< Select the ADC clock. 0 = ADC uses a 23-1/3MHz clock, 1 = ADC uses a 22.5MHz clock. */
+    int deviceid; /*!< device ID, 0-7, seems to be disabled in the linux API */
+    bool docal; /*!<if true, the following cal data will be used for calculations */
+    unsigned char caldata[4096]; /*!< 4K cal data to use for calculations */
+    bool preset;  /*!< attempt to preset the Signal hound after configuring */
+    bool ext_ref; /*!< attempt to configure a 10MHz input clock */
+    bool preamp; /*!< attempt to init preamp (SA44B only) */
+    int ext_trigger; //set trigger to external, freerunning, or pulsed output */
 
     //Temperate compensation.  Not implemented as I dont have the API for it.
-    bool dotemp;
-    char *filename;
+    bool dotemp; /*!< Not Implemented */
+    char *filename; /*!< Not Implemented */
 
     configOpts() {
       attenuation = 10.0;
@@ -86,12 +86,12 @@ namespace SignalHound {
   };
 
   struct rfOpts {
-    bool slowSweep;  //True performs slow sweep.  False performs a fast sweep
-    double start_freq; //Sweep beginning frequency
-    double stop_freq; //Sweep ending frequency
-    int fftsize; //how large should the FFT window be
-    int image_rejection; // 0 = mask both high and low, 1 = masks high side, 2 = masks low side
-    int average;  //only used in slow sweep.  Arg is the number of ffts to average.  (fftsize*average) % 512 === 0
+    bool slowSweep;  /*!< If true, performs slow sweep.  False performs a fast sweep */
+    double start_freq; /*!< Sweep beginning frequency */
+    double stop_freq; /*!< Sweep ending frequency */
+    int fftsize; /*!< how large should the FFT window be */
+    int image_rejection; /*!< 0 = mask both high and low, 1 = masks high side, 2 = masks low side */
+    int average;  /*!< only used in slow sweep.  Arg is the number of ffts to average.  (fftsize*average) % 512 === 0 */
     rfOpts() {
       slowSweep = true;
       start_freq = 150.0e6;
@@ -104,7 +104,7 @@ namespace SignalHound {
 
   class SignalHound {
     public:
-      explicit SignalHound( struct configOpts *co = 0 );
+      explicit SignalHound( struct configOpts *co = 0 /**< [in] Option set to acquire*/);
       ~SignalHound();
       /** \brief Returns a human readable string of the current configuration options
        *
@@ -113,36 +113,54 @@ namespace SignalHound {
        * count size, and Signal Hound Temperatures.
        *
        * @see SignalHound::SignalHound::temperature
+       * @see SignalHound::SignalHound::calcRBW
+       * @see SignalHound::SignalHound::sweepCount
+       * @see SignalHound::SignalHound::sweepTime
+       * @see SignalHound::SignalHound::frequencies
+       * @see SignalHound::SignalHound::rfopts
+       * @see SignalHound::SignalHound::configOpts
       */
       std::string info( void );
-      int  initialize( struct configOpts *co = 0 );
+      /** \brief Initialize the Signal Hound
+       *
+       * Returns 0 if success, and an error value otherwise.
+       *
+      */
+      int  initialize( struct configOpts *co = 0 /**< [in] Option set to acquire */);
 
-      /** \brief Returns an array of frequencies that can be used as the titles.*/
-      std::vector<int> frequencies();
+      /** \brief Array of Frequencies where measurements will occur.
+       * 
+       * Returns an vector of int frequencies where measurements should occur.
+       */
+      std::vector<int> frequencies( void );
 
-      /** \brief Returns the size of array needed to perfom the sweep.*/
-      double temperature();
+      /** \brief Return Compensation Temperature of the Signal Hound*/
+      double temperature( void );
 
       /** \brief Returns the Resolution Bandwidth*/
       double calcRBW( void ) { return ( 1.6384e6 / rfopts.fftsize / ( rfopts.slowSweep ? opts.decimation : 1 ) ); }
 
-      /** \brief Returns the size of array needed to perfom the sweep.*/
-      int sweepCount();
+      /** \brief Returns the number of samples in a sweep*/
+      int sweepCount( void );
 
-      /** \brief Returns the size of array needed to perfom the sweep.*/
-      double sweepTime();
+      /** \brief Returns the time (in seconds) a single sweep will take.*/
+      double sweepTime(void );
 
       /** \brief Perform a frequency sweep.
-           *
+       *
        * Returns the size of the array returns, 0 if incorrectly
        * configured, and -errno if the sweep failed.  Passing a
        * rfopts will use the specific configuration.
        *
        * @see SignalHound::SignalHound::rfopts
-       * @see SignalHound::SignalHound::sweep
+       * @see SignalHound::SignalHound::configOpts
+       * @see SignalHound::SignalHound::calcRBW
+       * @see SignalHound::SignalHound::sweepCount
+       * @see SignalHound::SignalHound::sweepTime
+       * @see SignalHound::SignalHound::frequencies
       */
       int sweep();
-      int sweep( struct rfOpts rfopts );
+      int sweep( struct rfOpts rfopts /**< [in] RF Options to use */);
 
       /** \brief Returns True if the configuration settings are allowable
        *
@@ -152,22 +170,21 @@ namespace SignalHound {
        * set to "No Errors".  Internally, the
        *
        * @see SignalHound::SignalHound::rfopts
+       * @see SignalHound::SignalHound::configOpts
        * @see SignalHound::SignalHound::sweep
       */
-      bool verfyRFConfig( std::string &errmsg, struct rfOpts ropts );
+      bool verfyRFConfig( std::string &errmsg /**< [out] String Error Message */, struct rfOpts ropts /**< [in] RF Options to use */);
 
       /** \brief Structure that contains all the pertinant information to run a sweep*/
       struct rfOpts rfopts;
+
+      /**< \brief Measured values will be placed in here */
       std::vector<double> powers;
 
-
     private:
-      struct configOpts opts;
-      //    std::vector<double> powers;
-      int errno;
-      std::string errmsg;
-      unsigned char *sighound_struct; //allocated on start up
-
-
+      struct configOpts opts; //!Configuration Options for the Signal Hound
+      int errno; //!Error Number
+      std::string errmsg; //! Error Message
+      unsigned char *sighound_struct; //! Memory Block allocated for the SHAPI
   };
 }

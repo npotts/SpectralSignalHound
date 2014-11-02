@@ -14,4 +14,6 @@ TODO
 - Create cli front end to the signal hound class
 - edit readmes rather than just a skeleton
 - docstringize sources
+- read a .ini config file to configure sweeps
+- named sweeps with multiple settings in a config file
 - profit???

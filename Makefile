@@ -32,7 +32,7 @@ LDFLAGS=-L. -L./libs libs/sh_linux_api.a
 CFLAGS= -Wall -O2
 
 
-SOURCES=src/CUSBSA.cpp src/args.cpp src/SignalHound.cpp src/sh-spectrum.cpp
+SOURCES=src/CUSBSA.cpp src/SHWrapper.cpp src/SignalHound.cpp src/sh-spectrum.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=sh-spectrum
 

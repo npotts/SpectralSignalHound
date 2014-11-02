@@ -104,7 +104,7 @@ namespace SignalHound {
 
   class SignalHound {
     public:
-      explicit SignalHound( struct configOpts *co = 0 /**< [in] Option set to acquire*/);
+      explicit SignalHound( struct configOpts *co = 0 /**< [in] Option set to acquire*/, struct rfOpts *rfo = 0 /** [in] RF option set to start with */);
       ~SignalHound();
       /** \brief Returns a human readable string of the current configuration options
        *
@@ -139,6 +139,9 @@ namespace SignalHound {
 
       /** \brief Returns the Resolution Bandwidth*/
       double calcRBW( void ) { return ( 1.6384e6 / rfopts.fftsize / ( rfopts.slowSweep ? opts.decimation : 1 ) ); }
+
+      /** \brief get/set the internal rfOpts structure;*/
+      struct rfOpts rfOpts(struct rfOpts *n = 0);
 
       /** \brief Returns the number of samples in a sweep*/
       int sweepCount( void );
@@ -175,13 +178,11 @@ namespace SignalHound {
       */
       bool verfyRFConfig( std::string &errmsg /**< [out] String Error Message */, struct rfOpts ropts /**< [in] RF Options to use */);
 
-      /** \brief Structure that contains all the pertinant information to run a sweep*/
-      struct rfOpts rfopts;
-
       /**< \brief Measured values will be placed in here */
       std::vector<double> powers;
 
     private:
+      struct rfOpts rfopts; //! Structure that contains all the pertinant information to run a sweep
       struct configOpts opts; //!Configuration Options for the Signal Hound
       int errno; //!Error Number
       std::string errmsg; //! Error Message

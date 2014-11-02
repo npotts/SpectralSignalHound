@@ -39,10 +39,12 @@ namespace SignalHound {
     }
     free( sighound_struct );
   }
-  SignalHound::SignalHound( struct configOpts *co ) {
+  SignalHound::SignalHound( struct configOpts *co, struct rfOpts *rfo ) {
     //Initialize and create the signal hound
     if ( co )
       memcpy( &opts, co, sizeof( opts ) );
+    if (rfo)
+      memcpy( &rfopts, rfo, sizeof( rfopts ) );
     errno = -1;
     int sh_size = SHAPI_GetStructSize();
     sighound_struct = ( unsigned char * ) malloc( sh_size * sizeof( double ) );
@@ -210,5 +212,25 @@ namespace SignalHound {
     if ( !cfgok )
       rtn << "Invalid Config Error Message: '" << errmsg << "'" << std::endl;
     return rtn.str();
+  }
+  struct rfOpts SignalHound::rfOpts(struct rfOpts *n) {
+    if (n) {
+      std::cout << "asdasd ad" << std::endl;
+      rfopts = *n;
+      std::cout << "asdasd ad" << std::endl;
+      rfopts.slowSweep = n->slowSweep;
+      std::cout << "1" << std::endl;
+      rfopts.start_freq = n->start_freq;
+      std::cout << "2" << std::endl;
+      rfopts.stop_freq = n->stop_freq;
+      std::cout << "3" << std::endl;
+      rfopts.fftsize = n->fftsize;
+      std::cout << "4" << std::endl;
+      rfopts.image_rejection = n->image_rejection;
+      std::cout << "5" << std::endl;
+      //memcpy( &rfopts, n, sizeof(struct rfOpts));
+    }
+    std::cout << "asdasd ad" << std::endl;
+    return rfopts;
   }
 };

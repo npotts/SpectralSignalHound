@@ -98,7 +98,7 @@ namespace SignalHound {
       od_modes.add_options()
   /**/( "info", "Calculated parameters and dumps a list of what would be done.  This is helpful if you want to see the Resolution Bandwidth (RBW) or other RF parameters" )
   /**/( "slow", "Use slow sweep mode. Slow sweep is which is more thorough and not bandwidth limited.  Data points will be spaced 486.111KHz/(fft*decimation).  Each measurement cycle will take: (40 + (fft*average*decimation)/486)*(stop_freq - start_freq)/201000 milliseconds, rounded up. Furthermore, fft*average must be a integer multiple of 512." )
-  /**/( "fast", "Use fast sleep mode. Fast sweep captures a single sweep of data. The start_freq, and stop_freq are rounded to the nearest 200KHz. If fft=1, only the raw power is sampled, and samples are spaced 200KHz apart. If fft > 1, samples are spaced 200KHz.  RBW is set solely on FFT size as the decimation is equal to 1 (fixed internally)" )      /**/( "fast", "Use fast sleep mode. Fast sweep captures a single sweep of data. The start_freq, and stop_freq are rounded to the nearest 200KHz. If fft=1, only the raw power is sampled, and samples are spaced 200KHz apart. If fft > 1, samples are spaced 200KHz.  RBW is set solely on FFT size as the decimation is equal to 1 (fixed internally)" )
+  /**/( "fast", "Use fast sleep mode. Fast sweep captures a single sweep of data. The start_freq, and stop_freq are rounded to the nearest 200KHz. If fft=1, only the raw power is sampled, and samples are spaced 200KHz apart. If fft > 1, samples are spaced 200KHz.  RBW is set solely on FFT size as the decimation is equal to 1 (fixed internally)" )
       ( "delay", po::value<int>(&pause_between_traces)->default_value( 0 ), "In order to limit on the rediculously large file sizes, how long should this program pause between sweeps in milliseconds" )
       ( "repetitions", po::value<int>(&repetitions)->default_value( -1 ), "How many sweeps should be done before exiting.  Default of -1 means sweep forever (well... at least until Ctrl-C hit or power cycled)" )
       ;
@@ -128,9 +128,9 @@ namespace SignalHound {
       }
       if ( vm.count("preset") ) sh_opts.preset = true;
       if ( vm.count("extref") ) sh_opts.ext_ref = true;
-      if ( vm.count("fast") ) modes = FAST_SWEEP;
+      if ( vm.count("fast") ) sh_rfopts.slowSweep = false;
       if ( vm.count("info") ) modes = INFODISPLAY;
-      if ( vm.count("slow") ) modes = SLOW_SWEEP;
+      if ( vm.count("slow") ) sh_rfopts.slowSweep = true;
 
       //perform validation
       if (!((sh_opts.attenuation == 0.0) | 
@@ -148,6 +148,8 @@ namespace SignalHound {
 
       if ((sh_rfopts.image_rejection < 0) | (sh_rfopts.image_rejection > 2))
         sh_rfopts.image_rejection = 0;
+      if (sh_rfopts.fftsize == -1)
+        sh_rfopts.fftsize = sh_rfopts.slowSweep ? 1024 : 16;
 
       return true;
     } catch ( std::exception &e ) {

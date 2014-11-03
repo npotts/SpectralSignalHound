@@ -1,0 +1,6 @@
+[submodule "ext/kompex"]
+	path = ext/kompex
+	url = https://github.com/Aethelflaed/kompex-sqlite-wrapper/
+[submodule "ext/easyloggingpp"]
+	path = ext/easyloggingpp
+	url = git@github.com:easylogging/easyloggingpp.git

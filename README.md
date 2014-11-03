@@ -6,6 +6,9 @@ EG, the files downloaded from [here](https://www.signalhound.com/support/downloa
 
 ![API Used](/README.d/api-used.png "Location of API used")
 
+TOC
+===
+
 TODO
 ====
 
@@ -17,3 +20,6 @@ TODO
 - read a .ini config file to configure sweeps
 - named sweeps with multiple settings in a config file
 - profit???
+
+License
+=======

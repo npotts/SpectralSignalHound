@@ -32,6 +32,22 @@
 #include "SignalHound.h"
 
 namespace SignalHound {
+
+  std::string currentTimeDate(bool include_ms, const char* format)  {
+    struct timeval tv;
+    time_t nowtime;
+    struct tm *nowtm;
+    char buf[256];
+    gettimeofday( &tv, NULL );
+    nowtime = tv.tv_sec;
+    nowtm = localtime( &nowtime );
+    int len = strftime( buf, sizeof( buf ), format, nowtm );
+    //fill in microseconds
+    if (include_ms)
+      len += snprintf( buf + len, sizeof( buf ) - len, ".%06d", ( unsigned int ) tv.tv_usec );
+    std::string rtn = std::string( buf, len );
+    return rtn;
+  }
   SignalHound::~SignalHound() {
     if ( errno >= 0 ) {
       SHAPI_CyclePowerOnExit( sighound_struct );

@@ -31,6 +31,10 @@
 
 #pragma once
 
+#include <time.h>
+#include <stdio.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <cmath>
 #include <cstring>
 #include <string>
@@ -101,6 +105,15 @@ namespace SignalHound {
       average = 16;
     }
   };
+
+  /** \brief Returns a string representation of the current date and time
+   *
+   * This low level function returns a string representation of the !LOCALTIME! 
+   * time and date. include_ms will tack on milliseconds in '.%06d' format
+   * you can also provide another format to pass to snprintf.  Using defaults
+   * will return something like 2014-04-05 06:07:08.123456
+   */
+  std::string currentTimeDate(bool include_ms = true, const char* format = "%Y-%m-%d %H:%M:%S");
 
   class SignalHound {
     public:

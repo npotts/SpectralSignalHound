@@ -33,11 +33,11 @@
 #include "SignalHound.h"
 #include "SHWrapper.h"
 
-using namespace std;
+using namespace SignalHound;
 
 int main( int args, char *argv[] ) {
   bool ok;
-  SignalHound::SHWrapper shwrap(ok, args, argv);
+  SHWrapper shwrap(ok, args, argv);
 }
 
 /*

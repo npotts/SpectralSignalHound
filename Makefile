@@ -50,4 +50,4 @@ $(EXECUTABLE): $(OBJECTS)
 #	$(CXX) -g -g3 $(INCLUDE_PATHS) -o $@ $(CAL_OBJECTS) $(LDFLAGS) $(STATIC_LIBS)
 
 clean:
-	rm -f src/*.o *~ $(CAL_EXECUTABLE) $(EXECUTABLE) *.csv
+	rm -f src/*.o *~ $(CAL_EXECUTABLE) $(EXECUTABLE) *.csv *log

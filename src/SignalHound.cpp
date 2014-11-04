@@ -31,8 +31,18 @@
 
 #include "SignalHound.h"
 
-namespace SignalHound {
+//initialize easylogging++
+_INITIALIZE_EASYLOGGINGPP
 
+/* Log types available:
+LOG(INFO);
+LOG(DEBUG);
+LOG(WARNING);
+LOG(ERROR);
+LOG(TRACE);
+*/
+
+namespace SignalHound {
   std::string currentTimeDate(bool include_ms, const char* format)  {
     struct timeval tv;
     time_t nowtime;
@@ -49,19 +59,39 @@ namespace SignalHound {
     return rtn;
   }
   SignalHound::~SignalHound() {
-    if ( errno >= 0 ) {
+    if ( sh_errno >= 0 ) {
       SHAPI_CyclePowerOnExit( sighound_struct );
       SHAPI_Close( sighound_struct );
     }
     free( sighound_struct );
+    el::Loggers::unregisterLogger("SignalHound");
   }
   SignalHound::SignalHound( struct configOpts *co, struct rfOpts *rfo ) {
+    //get a custom logger for this class to spew into
+    //logger = el::Loggers::getLogger("SignalHound");
+    //setup logging
+    el::Loggers::addFlag(el::LoggingFlag::DisableApplicationAbortOnFatalLog);
+    el::Loggers::addFlag(el::LoggingFlag::LogDetailedCrashReason);
+    el::Loggers::addFlag(el::LoggingFlag::ColoredTerminalOutput);
+    el::Loggers::addFlag(el::LoggingFlag::CreateLoggerAutomatically);
+    el::Loggers::addFlag(el::LoggingFlag::AutoSpacing); // turn LOG(DEBUG) << "a"<<"b"<<"c" to print as "a b c"
+    //because the default timestamp is all wacky, we need to recreate a few logging format
+    // INFO and WARNING are set to default by the global call below
+    el::Loggers::reconfigureAllLoggers(                   el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level - %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Debug,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] [%user@%host] [%func] [%loc] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Error,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Fatal,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Verbose,el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level-%vlevel [%logger] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Trace,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] [%func] [%loc] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, "sh-spectrum.log");
+    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "true"); //write to file
+    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, "true"); //write to file
     //Initialize and create the signal hound
     if ( co )
       memcpy( &opts, co, sizeof( opts ) );
     if (rfo)
       memcpy( &rfopts, rfo, sizeof( rfopts ) );
-    errno = -1;
+    sh_errno = -1;
     int sh_size = SHAPI_GetStructSize();
     sighound_struct = ( unsigned char * ) malloc( sh_size * sizeof( double ) );
     //check malloc
@@ -73,33 +103,33 @@ namespace SignalHound {
       memcpy( &opts, co, sizeof( opts ) );
     //initialize.  Check if we can short cut with cal data
     if ( opts.docal ) { //yes, take the shortcut, but this does not seem to work any faster.  eh?
-      errno = SHAPI_InitializeEx( sighound_struct, opts.caldata );
+      sh_errno = SHAPI_InitializeEx( sighound_struct, opts.caldata );
     } else {
-      errno = SHAPI_Initialize( sighound_struct );
+      sh_errno = SHAPI_Initialize( sighound_struct );
       //copy cal data over now hat we have it
-      if ( errno == 0 ) {
+      if ( sh_errno == 0 ) {
         SHAPI_CopyCalTable( sighound_struct, opts.caldata );
         opts.docal = true;
       }
     }
-    if ( errno != 0 ) return errno;
+    if ( sh_errno != 0 ) return sh_errno;
 
     if ( opts.preset ) { //Preset the unit
-      if ( ( errno = SHAPI_CyclePort( sighound_struct ) ) != 0 )
-        return errno;
+      if ( ( sh_errno = SHAPI_CyclePort( sighound_struct ) ) != 0 )
+        return sh_errno;
     }
 
     //now configure
-    if ( ( errno = SHAPI_Configure( sighound_struct,
+    if ( ( sh_errno = SHAPI_Configure( sighound_struct,
                                     opts.attenuation,
                                     opts.mixerBand,
                                     opts.sensitivity,
                                     opts.decimation,
                                     opts.iflo_path,
                                     opts.adcclk_path ) ) != 0 )
-      return errno;
+      return sh_errno;
     //Setup External Ref if asked
-    if ( opts.ext_ref && ( ( errno = SHAPI_SelectExt10MHz( sighound_struct ) ) != 0 ) ) return errno;
+    if ( opts.ext_ref && ( ( sh_errno = SHAPI_SelectExt10MHz( sighound_struct ) ) != 0 ) ) return sh_errno;
 
     if ( opts.preamp )
       SHAPI_SetPreamp( sighound_struct, 1 );
@@ -110,10 +140,10 @@ namespace SignalHound {
     if ( ( opts.ext_trigger != SHAPI_EXTERNALTRIGGER ) && ( opts.ext_trigger != SHAPI_SYNCOUT ) && ( opts.ext_trigger != SHAPI_TRIGGERNORMAL ) )
       opts.ext_trigger = SHAPI_TRIGGERNORMAL;
     SHAPI_SyncTriggerMode( sighound_struct, opts.ext_trigger );
-    return errno;
+    return sh_errno;
   }
   double SignalHound::temperature() {
-    if ( !errno )
+    if ( !sh_errno )
       return ( double ) SHAPI_GetTemperature( sighound_struct );
     return ( -9999.9999 );
   }
@@ -123,7 +153,7 @@ namespace SignalHound {
              ( 40 + 1.2 * ( rfopts.stop_freq - rfopts.start_freq ) / 200e3 ) ) / 1000.0;
   }
   int SignalHound::sweepCount() {
-    if ( errno ) return -1;
+    if ( sh_errno ) return -1;
     return rfopts.slowSweep ? SHAPI_GetSlowSweepCount( sighound_struct, rfopts.start_freq, rfopts.stop_freq, rfopts.fftsize ) : \
            SHAPI_GetFastSweepCount( rfopts.start_freq, rfopts.stop_freq, rfopts.fftsize );
   }
@@ -132,6 +162,8 @@ namespace SignalHound {
     bool ok = true;
     ok &= ( ropts.stop_freq > ropts.start_freq );
     if ( !ok ) {errmsg = "Stop Frequency must be higher than the Start Frequency"; return false;}
+    ok &= ( (ropts.stop_freq < MAX_FREQ) && (ropts.start_freq > MIN_FREQ) );
+    if ( !ok ) {errmsg = "Allowable frequency range is from 1 Hz to 4.4GHz."; return false;}
     if ( ropts.slowSweep ) {
       //check FFT length
       ok &= ( ( ropts.fftsize > 15 ) && ( ropts.fftsize <= 65536 ) && ( ( ropts.fftsize & ( ropts.fftsize - 1 ) ) == 0 ) );

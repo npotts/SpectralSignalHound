@@ -26,30 +26,28 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-INCLUDE_PATHS = -I. -I./src/ -I/opt/lib64
+CC=gcc
+CXX=g++
+INCLUDE_PATHS = -I. -I./src/ -I/opt/lib64 -Iext/kompex/include -Iext/easyloggingpp/src
 STATIC_LIBS=-lpthread -lboost_program_options -lftd2xx -ldl -lrt 
-LDFLAGS=-L. -L./libs libs/sh_linux_api.a
-CFLAGS= -Wall -O2
+LDFLAGS=-L. -L./libs libs/sh_linux_api.a ext/kompex/lib/libkompex-sqlite-wrapper.a
+CXXFLAGS=-g -g3 -Wall -O2 -std=c++11
 
-
-SOURCES=src/CUSBSA.cpp src/SHWrapper.cpp src/SignalHound.cpp src/sh-spectrum.cpp
+SOURCES=src/SHBackend.cpp src/SHBackendSQLite.cpp src/SHWrapper.cpp src/SignalHound.cpp src/sh-spectrum.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=sh-spectrum
 
-CAL_SOURCES=src/CUSBSA.cpp src/extract-cal-data.cpp
-CAL_OBJECTS=$(CAL_SOURCES:.cpp=.o)
-CAL_EXECUTABLE=sh-extract-cal-data
+#CAL_SOURCES=src/CUSBSA.cpp src/extract-cal-data.cpp
+#CAL_OBJECTS=$(CAL_SOURCES:.cpp=.o)
+#CAL_EXECUTABLE=sh-extract-cal-data
 
-all: $(SOURCES) $(CAL_SOURCES) $(EXECUTABLE) $(CAL_EXECUTABLE)
+all: $(SOURCES) $(CAL_SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
-	$(CXX) -g -g3 $(INCLUDE_PATHS) -o $@ $(OBJECTS) $(LDFLAGS) $(STATIC_LIBS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATHS) -o $@ $(OBJECTS) $(LDFLAGS) $(STATIC_LIBS)
 
-$(CAL_EXECUTABLE): $(CAL_OBJECTS)
-	$(CXX) -g -g3 $(INCLUDE_PATHS) -o $@ $(CAL_OBJECTS) $(LDFLAGS) $(STATIC_LIBS)
-
-.cpp.o:
-	$(CXX) -g -g3 $(CFLAGS) $(INCLUDE_PATHS) $<  -c -o $@
+#$(CAL_EXECUTABLE): $(CAL_OBJECTS)
+#	$(CXX) -g -g3 $(INCLUDE_PATHS) -o $@ $(CAL_OBJECTS) $(LDFLAGS) $(STATIC_LIBS)
 
 clean:
 	rm -f src/*.o *~ $(CAL_EXECUTABLE) $(EXECUTABLE) *.csv

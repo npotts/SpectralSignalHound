@@ -33,30 +33,10 @@
 #include "SignalHound.h"
 #include "SHWrapper.h"
 
+
 using namespace SignalHound;
 
 int main( int args, char *argv[] ) {
   bool ok;
   SHWrapper shwrap(ok, args, argv);
 }
-
-/*
-
-#include <time.h>
-#include <sys/time.h>
-#include <cmath>
-
-std::string now() {
-  struct timeval tv;
-  time_t nowtime;
-  struct tm *nowtm;
-  char buf[64];
-  gettimeofday( &tv, NULL );
-  nowtime = tv.tv_sec;
-  nowtm = localtime( &nowtime );
-  int len = strftime( buf, sizeof( buf ), "%Y-%m-%d %H:%M:%S", nowtm );
-  //fill in microseconds
-  len += snprintf( buf + len, sizeof( buf ) - len, ".%06d", ( unsigned int ) tv.tv_usec );
-  string rtn = string( buf, len );
-  return rtn;
-}*/

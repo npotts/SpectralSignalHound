@@ -31,31 +31,21 @@
 
 
 #pragma once
-#include <fstream>
+
 #include "SignalHound.h"
-#include "SHBackend.h"
-#include "SHBackendSQLite.h"
-#include <boost/program_options.hpp>
 
 using namespace std;
 namespace SignalHound {
-  enum shverbosity {SILENT, NORMAL, GRATUITOUS};
-  enum shwrapper_mode {SLOW_SWEEP, FAST_SWEEP, INFODISPLAY};
-  class SHWrapper {
+  class SHBackend {
     public:
-      SHWrapper(bool &, /**< [out] true if cfg worked, false otherwise*/
-               int, /**< [in] arg count, from main() */
-               char *[] /**< [in] arg list*/);
-      ~SHWrapper();
-    private:
-      bool parseArgs(int, char *[]);
-
-      SignalHound *sh;
-      struct configOpts sh_opts;
-      struct rfOpts sh_rfopts;
-      int verbosity;
-      int pause_between_traces, repetitions;
-      int mode;
-      el::Logger* logger;
+      SHBackend(bool &ok, std::string);
+      ~SHBackend();
+      virtual bool setOutput(std::string)=0; /// Set the output file parameters.
+      virtual bool setFreqColumns(std::vector<int> columns, std::string *postfix=NULL)=0; ///setFreqColumns is to create the header.  Postfix use is TBD by implementers
+      virtual bool newSweep(struct configOpts &, struct rfOpts &)=0; ///Instructs the backend a new sweep is about to take place.
+      virtual bool addSweep(std::vector<double>)=0; //add sweep data to output product
+     protected:
+      std::string filename;
+      int columns;
   };
 }

@@ -37,18 +37,23 @@ namespace SignalHound {
   SHWrapper::~SHWrapper() {
     if (sh != NULL)
       delete(sh);
+    el::Loggers::unregisterLogger("Wrapper");
   }
-  SHWrapper::SHWrapper(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), modes(SLOW_SWEEP) {
+  SHWrapper::SHWrapper(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), mode(SLOW_SWEEP) {
+    logger = el::Loggers::getLogger("Wrapper");
     std::string errmsg;
     ok = parseArgs(argc, args);
     sh = new SignalHound(&sh_opts, &sh_rfopts);
-    std::cout << sh->info();
+    if (mode == INFODISPLAY) {
+      std::cout << sh->info();
+      exit(0);
+    }
     ok &= sh->verfyRFConfig(errmsg, sh_rfopts);
-  }
-
-  void SHWrapper::message(std::string msg, int level) {
-    if (level > verbosity)
-      std::cout << msg << endl;
+    if (!ok) {
+      CLOG(INFO, "Wrapper") << "Invalid Configuration";
+      return;
+    }
+    CLOG(DEBUG, "Wrapper") << "Configuration is as follows" << std::endl << sh->info();
   }
 
   bool SHWrapper::parseArgs( int ac, char *av[]) {
@@ -63,6 +68,7 @@ namespace SignalHound {
       od_general.add_options()
       ( "help,h", "Show this message" )
       ( "version,V", "Print version information and quit" )
+      ( "log", po::value<std::string>()->default_value( "" ), "Write program log to file specified by arg. Defaults to stdout/stderr." )
       ( "quiet,q", "Setting this will cease all non-fatal displayed messages." )
       ( "verbose,v", "Setting this will cause a gratuitous amount of babble to be displayed.  This overrides --quiet." )
       ( "caldata,c", po::value<std::string>()->default_value( "" ) , "Use this file as the calibration data for the signal hound.  This should radically spead up initialization.  Use 'sh-extract-cal-data' to extract this calibration data and reference it here." )
@@ -84,7 +90,6 @@ namespace SignalHound {
       ( "database", po::value<std::string>()->default_value( "" ), "Write data into a sqlite database specified by the arg." )
       ( "sql,s", po::value<std::string>()->default_value( "" ), "Produce a text files that could be used to import data into a database." )
       ( "csv,c", po::value<std::string>()->default_value( "" ), "Produce a comma seperated file with data specified by arg." )
-      ( "log,l", po::value<std::string>()->default_value( "" ), "Write program log to file specified by arg.  Defaults to stdout/stderr." )
       ;
       po::options_description od_rfopts( "RF Options" );
       od_rfopts.add_options()
@@ -96,19 +101,22 @@ namespace SignalHound {
       ;
       po::options_description od_modes( "Sweep Modes" );
       od_modes.add_options()
-      ( "info", "Calculated parameters and dumps a list of what would be done.  This is helpful if you want to see the Resolution Bandwidth (RBW) or other RF parameters" )
-      ( "slow", "Use slow sweep mode. Slow sweep is which is more thorough and not bandwidth limited.  Data points will be spaced 486.111KHz/(fft*decimation).  Each measurement cycle will take: (40 + (fft*average*decimation)/486)*(stop_freq - start_freq)/201000 milliseconds, rounded up. Furthermore, fft*average must be a integer multiple of 512." )
-      ( "fast", "Use fast sleep mode. Fast sweep captures a single sweep of data. The start_freq, and stop_freq are rounded to the nearest 200KHz. If fft=1, only the raw power is sampled, and samples are spaced 200KHz apart. If fft > 1, samples are spaced 200KHz.  RBW is set solely on FFT size as the decimation is equal to 1 (fixed internally)" )
+      ( "info", po::value<int>(&mode)->implicit_value(INFODISPLAY), "Calculated parameters and dumps a list of what would be done.  This is helpful if you want to see the Resolution Bandwidth (RBW) or other RF parameters" )
+      ( "fast", po::value<int>(&mode)->implicit_value(FAST_SWEEP), "Use fast sleep mode. Fast sweep captures a single sweep of data. The start_freq, and stop_freq are rounded to the nearest 200KHz. If fft=1, only the raw power is sampled, and samples are spaced 200KHz apart. If fft > 1, samples are spaced 200KHz.  RBW is set solely on FFT size as the decimation is equal to 1 (fixed internally)" )
+      ( "slow", po::value<int>(&mode)->implicit_value(SLOW_SWEEP), "Use slow sweep mode. Slow sweep is which is more thorough and not bandwidth limited.  Data points will be spaced 486.111KHz/(fft*decimation).  Each measurement cycle will take: (40 + (fft*average*decimation)/486)*(stop_freq - start_freq)/201000 milliseconds, rounded up. Furthermore, fft*average must be a integer multiple of 512." )
       ( "delay", po::value<int>(&pause_between_traces)->default_value( 0 ), "In order to limit on the rediculously large file sizes, how long should this program pause between sweeps in milliseconds" )
       ( "repetitions", po::value<int>(&repetitions)->default_value( -1 ), "How many sweeps should be done before exiting.  Default of -1 means sweep forever (well... at least until Ctrl-C hit or power cycled)" )
       ;
       po::options_description all( "" );
       all.add( od_general ).add( od_rfopts ).add( od_modes ).add( od_output );
-      boost::program_options::variables_map vm;
+      po::variables_map vm;
       po::store( po::command_line_parser( ac, av ).options( all ).run(), vm );
       po::notify( vm );
       if ( vm.count( "help" ) ) { std::cout << all << "\n"; exit( 0 );  }
       if ( vm.count("version") ) { std::cout << "sh-spectrum-logger rev-" << SVN_REV << std::endl; exit(0); }
+      if ( vm.count("log") && vm["log"].as<std::string>() != "" ) { 
+        el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, vm["log"].as<std::string>());
+      }
       if ( vm.count("quiet") ) verbosity = SILENT;
       if ( vm.count("verbose") ) verbosity = GRATUITOUS;
       if ( vm.count("low-mixer") ) sh_opts.mixerBand = 0;
@@ -123,13 +131,12 @@ namespace SignalHound {
           if (bin.gcount() == 4096)
             sh_opts.docal = true;
         } catch (std::exception &e) {
-          std::cerr << "Error opening cal file: " << e.what() << std::endl;
+          CLOG(ERROR, "Wrapper") << "Error opening cal file: " << e.what();
         }
       }
       if ( vm.count("preset") ) sh_opts.preset = true;
       if ( vm.count("extref") ) sh_opts.ext_ref = true;
       if ( vm.count("fast") ) sh_rfopts.slowSweep = false;
-      if ( vm.count("info") ) modes = INFODISPLAY;
       if ( vm.count("slow") ) sh_rfopts.slowSweep = true;
 
       //perform validation
@@ -153,9 +160,10 @@ namespace SignalHound {
 
       return true;
     } catch ( std::exception &e ) {
-      std::cout << "Error parsing arguments: " << e.what() << std::endl;
+      CLOG(FATAL, "Wrapper") <<  "Error parsing arguments: " << e.what();
       return false;
     }
+    std::cout << "No Args Provided" << std::endl;
     return false;
   }
 };

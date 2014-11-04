@@ -44,13 +44,20 @@
 #include <stdlib.h>
 #include "SHLAPI.h"
 
+#define _ELPP_THREAD_SAFE 1
+#define _ELPP_STL_LOGGING 1
+#define _ELPP_BOOST_LOGGING 1
+#define _ELPP_STACKTRACE_ON_CRASH 1
+#define _ELPP_NO_DEFAULT_LOG_FILE 1
+#include "../ext/easyloggingpp/src/easylogging++.h"
+
 namespace SignalHound {
 #define MAX_FREQ 4.4e9
-#define MIX_FREQ 1.0
+#define MIN_FREQ 1.0
   enum connectionStates {UNCONNECTED = 0, INITIALIZED, PRESET, CONFIGURED};
 
   //External Trigger options
-  enum triggerOpts {SHAPI_EXTERNALTRIGGER = 0, SHAPI_SYNCOUT = 2, SHAPI_TRIGGERNORMAL = 3};
+  enum triggerOpts {SHAPI_TRIGGERNORMAL = 0, SHAPI_SYNCOUT = 2, SHAPI_EXTERNALTRIGGER = 3};
 
   //Initial Configuration of the Signal Hound
   struct configOpts {
@@ -70,7 +77,7 @@ namespace SignalHound {
 
     //Temperate compensation.  Not implemented as I dont have the API for it.
     bool dotemp; /*!< Not Implemented */
-    char *filename; /*!< Not Implemented */
+    char *temp_calfname; /*!< Not Implemented */
 
     configOpts() {
       attenuation = 10.0;
@@ -84,7 +91,7 @@ namespace SignalHound {
       preset = false;
       ext_ref = false;
       preamp = false;
-      ext_trigger = 0; //is this right?  I am not sure zero is a good setting.  Should be SHAPI_TRIGGERNORMAL
+      ext_trigger = SHAPI_TRIGGERNORMAL;
       dotemp = false;
     }
   };
@@ -165,7 +172,7 @@ namespace SignalHound {
       /** \brief Perform a frequency sweep.
        *
        * Returns the size of the array returns, 0 if incorrectly
-       * configured, and -errno if the sweep failed.  Passing a
+       * configured, and -sh_errno if the sweep failed.  Passing a
        * rfopts will use the specific configuration.
        *
        * @see SignalHound::SignalHound::rfopts
@@ -197,8 +204,9 @@ namespace SignalHound {
     private:
       struct rfOpts rfopts; //! Structure that contains all the pertinant information to run a sweep
       struct configOpts opts; //!Configuration Options for the Signal Hound
-      int errno; //!Error Number
+      int sh_errno; //!Error Number
       std::string errmsg; //! Error Message
       unsigned char *sighound_struct; //! Memory Block allocated for the SHAPI
+      el::Logger* logger;
   };
 }

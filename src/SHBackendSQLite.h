@@ -31,31 +31,33 @@
 
 
 #pragma once
-#include <fstream>
-#include "SignalHound.h"
+
+
+#include <string>
+#include <vector>
+
 #include "SHBackend.h"
-#include "SHBackendSQLite.h"
-#include <boost/program_options.hpp>
+#include "SignalHound.h"
+
+#include "../ext/kompex/include/KompexSQLiteBlob.h"
+#include "../ext/kompex/include/KompexSQLiteStatement.h"
+#include "../ext/kompex/include/KompexSQLiteDatabase.h"
 
 using namespace std;
 namespace SignalHound {
-  enum shverbosity {SILENT, NORMAL, GRATUITOUS};
-  enum shwrapper_mode {SLOW_SWEEP, FAST_SWEEP, INFODISPLAY};
-  class SHWrapper {
+  #define METADATA_TABLE_CREATE "CREATE TABLE IF NOT EXISTS sweep_metadata (rowid INTEGER NOT NULL PRIMARY KEY, TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL ,attenuation  DOUBLE NOT NULL, mixerband INT NOT NULL, sensitivity INT NOT NULL, decimation INT NOT NULL, iflo_path INT NOT NULL, adcclk_path INT NOT NULL, deviceid INT NOT NULL, docal INT NOT NULL, caldata NOT NULL, preset NOT NULL, ext_ref INT NOT NULL, preamp INT NOT NULL, ext_trigger INT NOT NULL, dotemp INT NOT NULL, temp_calfname INT NOT NULL, slowsweep INT NOT NULL, start_freq INT NOT NULL, stop_freq INT NOT NULL, fftsize INT NOT NULL, image_rejection INT NOT NULL, average INT NOT NULL, settingsvalid INT NOT NULL, temperature INT NOT NULL,  rbw INT NOT NULL, sweeppoints INT NOT NULL, sweeptime DOUBLE NOT NULL)"
+  class SHBackendSQLite: public SHBackend {
     public:
-      SHWrapper(bool &, /**< [out] true if cfg worked, false otherwise*/
-               int, /**< [in] arg count, from main() */
-               char *[] /**< [in] arg list*/);
-      ~SHWrapper();
+      ~SHBackendSQLite();
+      SHBackendSQLite(bool &ok, std::string);
+      bool setOutput(std::string);
+      bool setFreqColumns(std::vector<int> columns, std::string *postfix=NULL);
+      bool newSweep(struct configOpts &, struct rfOpts &);
+      bool insertData(std::vector<double>);
     private:
-      bool parseArgs(int, char *[]);
-
-      SignalHound *sh;
-      struct configOpts sh_opts;
-      struct rfOpts sh_rfopts;
-      int verbosity;
-      int pause_between_traces, repetitions;
-      int mode;
+      std::string data_table;
+      Kompex::SQLiteDatabase *pDB;
+      Kompex::SQLiteStatement *pStmt;
       el::Logger* logger;
   };
 }

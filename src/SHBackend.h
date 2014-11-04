@@ -42,7 +42,7 @@ namespace SignalHound {
       ~SHBackend();
       virtual bool setOutput(std::string)=0; /// Set the output file parameters.
       virtual bool setFreqColumns(std::vector<int> columns, std::string *postfix=NULL)=0; ///setFreqColumns is to create the header.  Postfix use is TBD by implementers
-      virtual bool newSweep(struct configOpts &, struct rfOpts &)=0; ///Instructs the backend a new sweep is about to take place.
+      virtual bool newSweep(map_str_dbl metadata)=0; ///Instructs the backend a new sweep is about to take place.
       virtual bool addSweep(std::vector<double>)=0; //add sweep data to output product
      protected:
       std::string filename;

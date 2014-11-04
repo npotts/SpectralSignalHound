@@ -54,7 +54,8 @@
 namespace SignalHound {
 #define MAX_FREQ 4.4e9
 #define MIN_FREQ 1.0
-  enum connectionStates {UNCONNECTED = 0, INITIALIZED, PRESET, CONFIGURED};
+
+  typedef std::map<std::string, double> map_str_dbl;
 
   //External Trigger options
   enum triggerOpts {SHAPI_TRIGGERNORMAL = 0, SHAPI_SYNCOUT = 2, SHAPI_EXTERNALTRIGGER = 3};
@@ -103,6 +104,7 @@ namespace SignalHound {
     int fftsize; /*!< how large should the FFT window be */
     int image_rejection; /*!< 0 = mask both high and low, 1 = masks high side, 2 = masks low side */
     int average;  /*!< only used in slow sweep.  Arg is the number of ffts to average.  (fftsize*average) % 512 === 0 */
+
     rfOpts() {
       slowSweep = true;
       start_freq = 150.0e6;
@@ -141,6 +143,7 @@ namespace SignalHound {
        * @see SignalHound::SignalHound::configOpts
       */
       std::string info( void );
+      map_str_dbl info_m( void );
       /** \brief Initialize the Signal Hound
        *
        * Returns 0 if success, and an error value otherwise.
@@ -168,6 +171,9 @@ namespace SignalHound {
 
       /** \brief Returns the time (in seconds) a single sweep will take.*/
       double sweepTime(void );
+
+      /** \brief Returns the frequency step size (in Hz)*/
+      double sweepStep( void );
 
       /** \brief Perform a frequency sweep.
        *

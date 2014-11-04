@@ -6,15 +6,15 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * * Redistributions of source code must retain the above copyright notice, this
- *   list of conditions and the following disclaimer.
+ *  list of conditions and the following disclaimer.
  *
  * * Redistributions in binary form must reproduce the above copyright notice,
- *   this list of conditions and the following disclaimer in the documentation
- *   and/or other materials provided with the distribution.
+ *  this list of conditions and the following disclaimer in the documentation
+ *  and/or other materials provided with the distribution.
  *
  * * Neither the name of SpectralSignalHound nor the names of its
- *   contributors may be used to endorse or promote products derived from
- *   this software without specific prior written permission.
+ *  contributors may be used to endorse or promote products derived from
+ *  this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -45,19 +45,24 @@
 
 using namespace std;
 namespace SignalHound {
-  #define METADATA_TABLE_CREATE "CREATE TABLE IF NOT EXISTS sweep_metadata (rowid INTEGER NOT NULL PRIMARY KEY, TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL ,attenuation  DOUBLE NOT NULL, mixerband INT NOT NULL, sensitivity INT NOT NULL, decimation INT NOT NULL, iflo_path INT NOT NULL, adcclk_path INT NOT NULL, deviceid INT NOT NULL, docal INT NOT NULL, caldata NOT NULL, preset NOT NULL, ext_ref INT NOT NULL, preamp INT NOT NULL, ext_trigger INT NOT NULL, dotemp INT NOT NULL, temp_calfname INT NOT NULL, slowsweep INT NOT NULL, start_freq INT NOT NULL, stop_freq INT NOT NULL, fftsize INT NOT NULL, image_rejection INT NOT NULL, average INT NOT NULL, settingsvalid INT NOT NULL, temperature INT NOT NULL,  rbw INT NOT NULL, sweeppoints INT NOT NULL, sweeptime DOUBLE NOT NULL)"
-  class SHBackendSQLite: public SHBackend {
-    public:
-      ~SHBackendSQLite();
-      SHBackendSQLite(bool &ok, std::string);
-      bool setOutput(std::string);
-      bool setFreqColumns(std::vector<int> columns, std::string *postfix=NULL);
-      bool newSweep(struct configOpts &, struct rfOpts &);
-      bool insertData(std::vector<double>);
-    private:
-      std::string data_table;
-      Kompex::SQLiteDatabase *pDB;
-      Kompex::SQLiteStatement *pStmt;
-      el::Logger* logger;
-  };
+  typedef std::vector<std::string> vstr;
+
+ #define METADATA_TABLE_CREATE "CREATE TABLE IF NOT EXISTS sweep_metadata (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, attenuation DOUBLE NOT NULL, mixerband INT NOT NULL, sensitivity INT NOT NULL, decimation INT NOT NULL, iflo_path INT NOT NULL, adcclk_path INT NOT NULL, deviceid INT NOT NULL, docal INT NOT NULL, preset INT NOT NULL, ext_ref INT NOT NULL, preamp INT NOT NULL, ext_trigger INT NOT NULL, slowsweep INT NOT NULL, start_freq DOUBLE NOT NULL, stop_freq DOUBLE NOT NULL, span DOUBLE NOT NULL, center_mean DOUBLE NOT NULL, center_geometric DOUBLE NOT NULL, fftsize INT NOT NULL, image_rejection INT NOT NULL, average INT NOT NULL, valid INT NOT NULL, temperature DOUBLE NOT NULL, rbw DOUBLE NOT NULL, sweep_count INT NOT NULL, sweep_time DOUBLE NOT NULL, sweep_step DOUBLE NOT NULL, data_table TEXT NOT)"
+ #define SWEEP_TABLE_PARAMS "(rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, csv TEXT)"
+ class SHBackendSQLite: public SHBackend {
+  public:
+    ~SHBackendSQLite();
+    SHBackendSQLite(bool &ok, std::string);
+    bool setOutput(std::string);
+    bool setFreqColumns(std::vector<int> columns, std::string *postfix);
+    bool newSweep(map_str_dbl);
+    bool insertData(std::vector<double>);
+  private:
+    vstr metadata_params;
+    std::string data_table, metadata_insert_proto, sweep_insert_proto;
+    Kompex::SQLiteDatabase *pDB;
+    Kompex::SQLiteStatement *pStmt;
+    el::Logger* logger;
+
+ };
 }

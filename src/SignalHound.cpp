@@ -157,6 +157,18 @@ namespace SignalHound {
     return rfopts.slowSweep ? SHAPI_GetSlowSweepCount( sighound_struct, rfopts.start_freq, rfopts.stop_freq, rfopts.fftsize ) : \
            SHAPI_GetFastSweepCount( rfopts.start_freq, rfopts.stop_freq, rfopts.fftsize );
   }
+  double SignalHound::sweepStep( void ) {
+    if ( sh_errno ) return INFINITY;
+    if ( rfopts.slowSweep ) {
+      return 486111.111 / rfopts.fftsize / opts.decimation;
+    } else { //fast sweep is a little different
+      if ( rfopts.fftsize == 1 ) {
+        return 200e3;
+      } else {
+        return (400.0e3 / rfopts.fftsize);
+      }
+    }
+  }
   bool SignalHound::verfyRFConfig( std::string &errmsg, struct rfOpts ropts ) {
     //check if we are doing a slow or fast sweep
     bool ok = true;
@@ -261,24 +273,41 @@ namespace SignalHound {
       rtn << "Invalid Config Error Message: '" << errmsg << "'" << std::endl;
     return rtn.str();
   }
+  map_str_dbl SignalHound::info_m() {
+    //return a vstr of data from the
+    map_str_dbl rtn;
+    rtn["attenuation"] = (double) opts.attenuation;
+    rtn["mixerband"] = (double) opts.mixerBand;
+    rtn["sensitivity"] = (double) opts.sensitivity;
+    rtn["decimation"] = (double) opts.decimation;
+    rtn["iflo_path"] = (double) opts.iflo_path;
+    rtn["adcclk_path"] = (double) opts.adcclk_path;
+    rtn["deviceid"] = (double) opts.deviceid;
+    rtn["docal"] = (double) opts.docal;
+    rtn["preset"] = (double) opts.preset;
+    rtn["ext_ref"] = (double) opts.ext_ref;
+    rtn["preamp"] = (double) opts.preamp;
+    rtn["ext_trigger"] = (double) opts.ext_trigger;
+    rtn["slowsweep"] = (double) rfopts.slowSweep;
+    rtn["start_freq"] = (double) rfopts.start_freq;
+    rtn["stop_freq"] = (double) rfopts.stop_freq;
+    rtn["span"] = (double) rfopts.stop_freq - rfopts.start_freq;
+    rtn["center_mean"] = rfopts.start_freq + ( rfopts.stop_freq - rfopts.start_freq ) / 2.0;
+    rtn["center_geometric"] = sqrt( rfopts.stop_freq * rfopts.start_freq );
+    rtn["fftsize"] = (double)  rfopts.fftsize;
+    rtn["image_rejection"] = (double) rfopts.image_rejection;
+    rtn["average"] = (double) rfopts.average;
+    rtn["valid"] = (double) verfyRFConfig( errmsg, rfopts );
+    rtn["temperature"] = temperature();
+    rtn["rbw"] = calcRBW();
+    rtn["sweep_count"] = (double) sweepCount();
+    rtn["sweep_time"] = sweepTime();
+    rtn["sweep_step"] = sweepStep();
+    return rtn;
+  }
   struct rfOpts SignalHound::rfOpts(struct rfOpts *n) {
-    if (n) {
-      std::cout << "asdasd ad" << std::endl;
+    if (n)
       rfopts = *n;
-      std::cout << "asdasd ad" << std::endl;
-      rfopts.slowSweep = n->slowSweep;
-      std::cout << "1" << std::endl;
-      rfopts.start_freq = n->start_freq;
-      std::cout << "2" << std::endl;
-      rfopts.stop_freq = n->stop_freq;
-      std::cout << "3" << std::endl;
-      rfopts.fftsize = n->fftsize;
-      std::cout << "4" << std::endl;
-      rfopts.image_rejection = n->image_rejection;
-      std::cout << "5" << std::endl;
-      //memcpy( &rfopts, n, sizeof(struct rfOpts));
-    }
-    std::cout << "asdasd ad" << std::endl;
     return rfopts;
   }
 };

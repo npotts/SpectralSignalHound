@@ -36,9 +36,22 @@ namespace SignalHound {
     el::Loggers::unregisterLogger("SQLBackend");
   }
   SHBackendSQLite::SHBackendSQLite(bool &ok, std::string dbfilename): SHBackend(ok, dbfilename) {
+
     logger = el::Loggers::getLogger("SQLBackend");
     pDB = NULL;
     pStmt = NULL;
+    //build up the metadata table prototype because we have a more complete
+    // information set than at compile time.
+    //I dont have a more efficient way to do this, but there is a better way to do this.
+    const char * metadata_params_[] = {"attenuation", "mixerband", "sensitivity", "decimation", "iflo_path", "adcclk_path", "deviceid", "docal", "preset", "ext_ref", "preamp", "ext_trigger", "slowsweep", "start_freq", "stop_freq", "span", "center_mean", "center_geometric", "fftsize", "image_rejection", "average", "valid", "temperature", "rbw", "sweep_count", "sweep_time", "sweep_step"};
+    metadata_params = vstr(metadata_params_, metadata_params_+sizeof(metadata_params_)/sizeof(const char *));
+    metadata_insert_proto = "INSERT INTO sweep_metadata (rowid, timestamp, data_table";
+    std::string tmp ("(NULL, ?, ?");
+    for(unsigned int i=0; i<metadata_params.size(); i++) {
+      metadata_insert_proto += ", " + std::string(metadata_params[i]);
+      tmp += ", ?";
+    } metadata_insert_proto += ") VALUES " + tmp + ")";
+    CLOG(DEBUG, "SQLBackend") << "Meta Data Insert Prototype: " << metadata_insert_proto;
     ok = setOutput(dbfilename);
   }
   bool SHBackendSQLite::setOutput(std::string dbfilename) {
@@ -46,8 +59,8 @@ namespace SignalHound {
     // create statement instance for sql queries/statements
     pStmt = new Kompex::SQLiteStatement(pDB);
     CLOG(DEBUG, "SQLBackend") << "Using SQLite Version: " << pDB->GetLibVersionNumber();
-    //create sweep_metadata table
-    pStmt->SqlStatement("CREATE TABLE IF NOT EXISTS sweep_metadata (rowid INTEGER NOT NULL PRIMARY KEY, timestamp ,attenuation  DOUBLE NOT NULL, mixerband INT NOT NULL, sensitivity INT NOT NULL, decimation INT NOT NULL, iflo_path INT NOT NULL, adcclk_path INT NOT NULL, deviceid INT NOT NULL, docal INT NOT NULL, caldata NOT NULL, preset NOT NULL, ext_ref INT NOT NULL, preamp INT NOT NULL, ext_trigger INT NOT NULL, dotemp INT NOT NULL, temp_calfname INT NOT NULL, slowsweep INT NOT NULL, start_freq INT NOT NULL, stop_freq INT NOT NULL, fftsize INT NOT NULL, image_rejection INT NOT NULL, average INT NOT NULL, settingsvalid INT NOT NULL, temperature INT NOT NULL,  rbw INT NOT NULL, sweeppoints INT NOT NULL, sweeptime DOUBLE NOT NULL)");
+    //create sweep_metadata table if it doesnt exist
+    pStmt->SqlStatement(METADATA_TABLE_CREATE);
     return true;
   }
   bool SHBackendSQLite::setFreqColumns(std::vector<int> columns, std::string *postfix) {
@@ -70,16 +83,66 @@ namespace SignalHound {
     pStmt->BindString(3, "Yura");
     pStmt->BindInt(4, 28);
     pStmt->BindDouble(5, 60.2);
-    */
+    
+
+
+    data_table = currentTimeDate(false, "%Y%m%dT%H%M%S");
+    if (postfix)SWEEP_TABLE_PARAMS
+      data_table += std::string("_") + postfix;
+    CLOG(DEBUG, "SQLBackend") << " Creating a new database table with the name: " << data_table;
+    std::string tmp("(NULL, NULL"), sweep_table_create("CREATE TABLE " + data_table + " (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, data_table");
+    sweep_insert_proto = "INSERT INTO " + data_table + " (rowid, timestamp, data_table";
+
+*/
        return true;
   }
-  bool SHBackendSQLite::newSweep(struct configOpts &opt, struct rfOpts &rfopt) {
+  bool SHBackendSQLite::newSweep(map_str_dbl metadata) {
     /*A new sweep is about to take place.  Add a new entry to the sweep_metadata table,
       create a new table for the sweep data, and adjust the internal data_table to point
       to the new table for further calls to SHBackendSQLite::addSweep() */
-      return true;
+      data_table = currentTimeDate(false, "%Y%m%dT%H%M%S");
+      CLOG(DEBUG, "SQLBackend") << " Creating a new database table with the name: " << data_table;
+      pStmt->Sql(metadata_insert_proto); //preload statement.  Now to bind
+      pStmt->BindString(1, currentTimeDate());
+      pStmt->BindString(2, data_table);
+      for(unsigned int i=0; i<metadata_params.size(); i++) {
+        pStmt->BindDouble(i+3, metadata[metadata_params.at(i)]);
+      }
+      try {
+        pStmt->ExecuteAndFree();
+        CLOG(DEBUG, "SQLBackend") << "Metadata successfully inserted";
+      } catch (std::exception &e) {
+        CLOG(ERROR, "SQLBackend") << "Metadata unable to be inserted";
+        CLOG(ERROR, "SQLBackend") << "Reason given: " << e.what();
+        return false;
+      }
+
+      //create new table
+      try {
+        pStmt->SqlStatement("CREATE TABLE " + data_table + " " + SWEEP_TABLE_PARAMS);
+      } catch (std::exception &e) {
+        CLOG(ERROR, "SQLBackend") << "Could not create table" + data_table;
+        CLOG(ERROR, "SQLBackend") << "Reason given: " << e.what();
+      }
+      return false;
   }
   bool SHBackendSQLite::insertData(std::vector<double> dbvalues) {
-    return true;
+    CLOG(DEBUG, "SQLBackend") << "Inserting Data";
+    std::stringstream data;
+    for(unsigned int i=0; i < dbvalues.size(); i++)
+      data << dbvalues.at(i) << (i - 1 == dbvalues.size() ? "" : ",");
+    try {
+      pStmt->Sql("INSERT INTO " + data_table + " (rowid, timestamp, csv) VALUES (NULL, ?, ?)");
+      pStmt->BindString(1, currentTimeDate());
+      pStmt->BindString(2, data.str());
+      pStmt->ExecuteAndFree();
+      return true;
+    } catch (std::exception &e) {
+      CLOG(ERROR, "SQLBackend") << "Could not insert into " + data_table;
+      CLOG(ERROR, "SQLBackend") << "Reason given: " << e.what();
+      return false;
+    }
+    return false;
+
   }
 };

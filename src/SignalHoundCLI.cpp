@@ -29,19 +29,18 @@
  *
  */
 
-#include "SHSignalHoundCLI.h"
+#include "SignalHoundCLI.h"
 #define SVN_REV "0.0.0"
 
 namespace po = boost::program_options;
 namespace SignalHound {
-  SHSignalHoundCLI::~SHSignalHoundCLI() {
+  SignalHoundCLI::~SignalHoundCLI() {
     if (sh != NULL)
       delete(sh);
     el::Loggers::unregisterLogger("SignalHoundCLI");
   }
-  SHSignalHoundCLI::SHSignalHoundCLI(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), mode(SLOW_SWEEP), sqlite(NULL), csv(NULL) {
-    logger = el::Loggers::getLogger("SignalHoundCLI");
-    configureLoggers();
+  SignalHoundCLI::SignalHoundCLI(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), mode(SLOW_SWEEP), sqlite(NULL), csv(NULL) {
+    logger = getSignalHoundLogger("SignalHoundCLI");
     std::string errmsg;
     ok = parseArgs(argc, args);
     sh = new SignalHound(&sh_opts, &sh_rfopts);
@@ -63,7 +62,7 @@ namespace SignalHound {
     if (!ok) exit(-1);
   }
 
-  bool SHSignalHoundCLI::runSweeps() {
+  bool SignalHoundCLI::runSweeps() {
     bool rtn = true;
     if (sqlite) sqlite->newSweep(sh->info_m());
     if (csv) csv->newSweep(sh->info_m());
@@ -75,7 +74,7 @@ namespace SignalHound {
     return rtn;
   }
 
-  bool SHSignalHoundCLI::runSweep() {
+  bool SignalHoundCLI::runSweep() {
     bool ok = true;
     int req_size;
     //run a single sweep, store data, then delay for pause_between_traces
@@ -97,9 +96,8 @@ namespace SignalHound {
     return ok;
   }
 
-  bool SHSignalHoundCLI::parseArgs( int ac, char *av[]) {
-    /* This ugly long function does one thing: populate the two structures
-    that configure the Signal Hound*/
+  bool SignalHoundCLI::parseArgs( int ac, char *av[]) {
+    /* This ugly long function populates the two structures that configure the Signal Hound*/
     try {
       po::options_description od_general(
         ""
@@ -110,7 +108,6 @@ namespace SignalHound {
       ( "help,h", "Show this message" )
       ( "version,V", "Print version information and quit" )
       ( "log", po::value<std::string>(&logfname)->default_value( "" ), "Write program log to file specified by arg. Defaults to stdout/stderr." )
-      ( "quiet,q", "Setting this will cease all non-fatal displayed messages." )
       ( "verbose,v", "Setting this will cause a gratuitous amount of babble to be displayed.  This overrides --quiet." )
       ( "caldata,c", po::value<std::string>()->default_value( "" ) , "Use this file as the calibration data for the signal hound.  This should radically spead up initialization.  Use 'sh-extract-cal-data' to extract this calibration data and reference it here." )
       ( "attenuation", po::value<double>(&sh_opts.attenuation)->default_value( 10.0 ), "Set the internal input attenuation.  Must be one of the following values: 0.0, 5.0, 10.0 (default), or 15.0.  Any other value will revert to the default." )
@@ -119,7 +116,7 @@ namespace SignalHound {
       ( "decimate", po::value<int>(&sh_opts.decimation)->default_value( 1 ), "Sample Rate is set to 486.111Ksps/arg.  Must be between [1, 16].  Resolution bandwidth is calculated from this and fft (below)." )
       ( "alt-iflo", "If flag is set, this forces selection of the 2.9MHz Intermediate Frequency (IF) Local Oscillator (LO).  The default is 10.7MHz and has higher selectivity but lower sensitivity.  The 2.9MHz IF LO which features higher sensitivity yet lower selectivity." )
       ( "alt-clock", "If flag is set, this forces selection of the 22.5MHz ADC clock.  The default uses a 23-1/3 MHz clock, but changing this is helpful if the signal you are interested in is a multiple of a 23-1/3MHz." )
-      //( "device", po::value<int>()->default_value( 0 ), "Select which Signal Hound Device to use.  Up to 8 can be connected to the same computer.  This seems to be disabled in the linux API" )
+      ( "device", po::value<int>()->default_value( 0 ), "Select which Signal Hound Device to use.  Up to 8 can be connected to the same computer.  This seems to be disabled in the linux API" )
       ( "preset",  "If flag is set, the Signal Hound will be preset immediately after initialzing and prior to sampling.  This does set the Signal Hound to a known state, but it also adds another 2.5 seconds to start up time." )
       ( "extref", "If flag is set, the Signal Hound will attempt to use a 10MHz external reference.  Input power to the Signal Hound must be greater than 0dBm in order for this to be used." )
       ( "trigger", po::value<int>(&sh_opts.ext_trigger)->default_value( 0 ), "Change the trigger mode.  0 (default) triggers immediately. 1  will only trigger on an external logic high. 2 will cause the trigger signal to pulse high when data collection begins." )
@@ -160,9 +157,13 @@ namespace SignalHound {
         el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "false");
       } else {
         el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, logfname);
+        el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "true");
       }
-      if ( vm.count("quiet") ) verbosity = SILENT;
-      if ( vm.count("verbose") ) verbosity = GRATUITOUS;
+      //el::Loggers::setLoggingLevel(el::Level::Info|el::Level::Error);
+      //Logger is already set to el::Level::Error
+      if ( vm.count("verbose") ) log_level = el::Level::Trace;
+      getSignalHoundLogger(); //reconfigures output
+
       if ( vm.count("low-mixer") ) sh_opts.mixerBand = 0;
       if ( vm.count("alt-iflo") ) sh_opts.iflo_path = 1;
       if ( vm.count("alt-clock") ) sh_opts.adcclk_path = 1;

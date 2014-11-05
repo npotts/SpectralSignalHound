@@ -41,13 +41,13 @@
 using namespace std;
 namespace SignalHound {
   enum shverbosity {SILENT, NORMAL, GRATUITOUS};
-  enum shwrapper_mode {SLOW_SWEEP, FAST_SWEEP, INFODISPLAY};
-  class SHWrapper {
+  enum SignalHoundCLI_mode {SLOW_SWEEP, FAST_SWEEP, INFODISPLAY, CALDATA};
+  class SignalHoundCLI {
     public:
-      SHWrapper(bool &, /**< [out] true if cfg worked, false otherwise*/
+      SignalHoundCLI(bool &, /**< [out] true if cfg worked, false otherwise*/
                int, /**< [in] arg count, from main() */
                char *[] /**< [in] arg list*/);
-      ~SHWrapper();
+      ~SignalHoundCLI();
       bool runSweeps();
     private:
       bool parseArgs(int, char *[]);
@@ -56,7 +56,7 @@ namespace SignalHound {
       SignalHound *sh;
       struct configOpts sh_opts;
       struct rfOpts sh_rfopts;
-      std::string logfname, dbfname, csvfname;
+      std::string logfname, dbfname, csvfname, calout;
       int verbosity;
       int pause_between_traces;
       int repetitions;

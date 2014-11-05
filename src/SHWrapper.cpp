@@ -29,26 +29,26 @@
  *
  */
 
-#include "SHWrapper.h"
+#include "SHSignalHoundCLI.h"
 #define SVN_REV "0.0.0"
 
 namespace po = boost::program_options;
 namespace SignalHound {
-  SHWrapper::~SHWrapper() {
+  SHSignalHoundCLI::~SHSignalHoundCLI() {
     if (sh != NULL)
       delete(sh);
-    el::Loggers::unregisterLogger("Wrapper");
+    el::Loggers::unregisterLogger("SignalHoundCLI");
   }
-  SHWrapper::SHWrapper(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), mode(SLOW_SWEEP), sqlite(NULL), csv(NULL) {
-    logger = el::Loggers::getLogger("Wrapper");
+  SHSignalHoundCLI::SHSignalHoundCLI(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), mode(SLOW_SWEEP), sqlite(NULL), csv(NULL) {
+    logger = el::Loggers::getLogger("SignalHoundCLI");
     configureLoggers();
     std::string errmsg;
     ok = parseArgs(argc, args);
     sh = new SignalHound(&sh_opts, &sh_rfopts);
 
-    CLOG(DEBUG, "Wrapper") << "Initializing Signal Hound";
+    CLOG(DEBUG, "SignalHoundCLI") << "Initializing Signal Hound";
     int r = sh->initialize(); //Try to initialize
-    CLOG_IF( ((r != 0) && (mode != INFODISPLAY)), FATAL, "Wrapper") << "Signal Hound did not Intialize";
+    CLOG_IF( ((r != 0) && (mode != INFODISPLAY)), FATAL, "SignalHoundCLI") << "Signal Hound did not Intialize";
     
     if (mode == INFODISPLAY) {
       std::cout << sh->info();
@@ -58,46 +58,46 @@ namespace SignalHound {
     if (r != 0) exit(-1);
 
     ok &= sh->verfyRFConfig(errmsg, sh_rfopts);
-    CLOG_IF( !ok, ERROR, "Wrapper") << "Passed configuration is not valid for sweep operations.";
-    CLOG_IF( !ok, ERROR, "Wrapper") << errmsg;
+    CLOG_IF( !ok, ERROR, "SignalHoundCLI") << "Passed configuration is not valid for sweep operations.";
+    CLOG_IF( !ok, ERROR, "SignalHoundCLI") << errmsg;
     if (!ok) exit(-1);
   }
 
-  bool SHWrapper::runSweeps() {
+  bool SHSignalHoundCLI::runSweeps() {
     bool rtn = true;
     if (sqlite) sqlite->newSweep(sh->info_m());
     if (csv) csv->newSweep(sh->info_m());
     if (repetitions > 0) {
-      CLOG(INFO, "Wrapper") << "Running a total of " << repetitions << " sweeps";
+      CLOG(INFO, "SignalHoundCLI") << "Running a total of " << repetitions << " sweeps";
       for (int i=0; i< repetitions; i++)
         rtn &= runSweep();
     }
     return rtn;
   }
 
-  bool SHWrapper::runSweep() {
+  bool SHSignalHoundCLI::runSweep() {
     bool ok = true;
     int req_size;
     //run a single sweep, store data, then delay for pause_between_traces
-    CLOG(INFO, "Wrapper") << "Starting a Sweep";
+    CLOG(INFO, "SignalHoundCLI") << "Starting a Sweep";
     req_size = sh->sweep();
     ok &= (req_size > 0);
-    CLOG_IF(ok, INFO, "Wrapper") << "Sweep returned " << req_size << " data points";
-    CLOG_IF(!ok, WARNING, "Wrapper") << "Sweep returned an error of " << -req_size;
+    CLOG_IF(ok, INFO, "SignalHoundCLI") << "Sweep returned " << req_size << " data points";
+    CLOG_IF(!ok, WARNING, "SignalHoundCLI") << "Sweep returned an error of " << -req_size;
     if (ok) {
       if (sqlite) {
         ok &= sqlite->addSweep(sh->powers);
-        CLOG_IF(!ok, ERROR, "Wrapper") << "Data not inserted!";
+        CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Data not inserted!";
       }
       if (csv) {
         ok &= csv->addSweep(sh->powers);
-        CLOG_IF(!ok, ERROR, "Wrapper") << "Data not add to CSV!";
+        CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Data not add to CSV!";
       }
     }
     return ok;
   }
 
-  bool SHWrapper::parseArgs( int ac, char *av[]) {
+  bool SHSignalHoundCLI::parseArgs( int ac, char *av[]) {
     /* This ugly long function does one thing: populate the two structures
     that configure the Signal Hound*/
     try {
@@ -142,6 +142,7 @@ namespace SignalHound {
       ;
       po::options_description od_modes( "Sweep Modes" );
       od_modes.add_options()
+      ( "extract-caldata", po::value<std::string>(&calout)->implicit_value(""), "Gather the calibration data from the Signal Hound and save it to the file pointed to by <arg>" )
       ( "info", po::value<int>(&mode)->implicit_value(INFODISPLAY), "Calculated parameters and dumps a list of what would be done.  This is helpful if you want to see the Resolution Bandwidth (RBW) or other RF parameters.  Due to limitations in the SignalHound API, some parameters will not be correct until the unit is initialized" )
       ( "fast", po::value<int>(&mode)->implicit_value(FAST_SWEEP), "Use fast sleep mode. Fast sweep captures a single sweep of data. The start_freq, and stop_freq are rounded to the nearest 200KHz. If fft=1, only the raw power is sampled, and samples are spaced 200KHz apart. If fft > 1, samples are spaced 200KHz.  RBW is set solely on FFT size as the decimation is equal to 1 (fixed internally)" )
       ( "slow", po::value<int>(&mode)->implicit_value(SLOW_SWEEP), "Use slow sweep mode. Slow sweep is which is more thorough and not bandwidth limited.  Data points will be spaced 486.111KHz/(fft*decimation).  Each measurement cycle will take: (40 + (fft*average*decimation)/486)*(stop_freq - start_freq)/201000 milliseconds, rounded up. Furthermore, fft*average must be a integer multiple of 512." )
@@ -174,7 +175,7 @@ namespace SignalHound {
           if (bin.gcount() == 4096)
             sh_opts.docal = true;
         } catch (std::exception &e) {
-          CLOG(ERROR, "Wrapper") << "Error opening cal file: " << e.what();
+          CLOG(ERROR, "SignalHoundCLI") << "Error opening cal file: " << e.what();
         }
       }
       if ( vm.count("preset") ) sh_opts.preset = true;
@@ -203,22 +204,22 @@ namespace SignalHound {
 
       if ( dbfname != "" ) {
         //user specified some database filename
-        CLOG(DEBUG, "Wrapper") << "Initializing Database: " << dbfname;
+        CLOG(DEBUG, "SignalHoundCLI") << "Initializing Database: " << dbfname;
         bool ok =false;
         sqlite = new SHBackendSQLite(ok, dbfname);
-        CLOG_IF(!ok, ERROR, "Wrapper") << "Unable to open database.";
+        CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Unable to open database.";
         if (!ok) return false;
       }
       if ( csvfname != "" ) {
-        CLOG(DEBUG, "Wrapper") << "Initializing CSV: " << csvfname;
+        CLOG(DEBUG, "SignalHoundCLI") << "Initializing CSV: " << csvfname;
         bool ok;
         csv = new SHBackendCSV(ok, csvfname);
-        CLOG_IF(!ok, ERROR, "Wrapper") << "Unable to open csv.";
+        CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Unable to open csv.";
         if (!ok) return false;
       }
       return true;
     } catch ( std::exception &e ) {
-      CLOG(FATAL, "Wrapper") <<  "Error parsing arguments: " << e.what();
+      CLOG(FATAL, "SignalHoundCLI") <<  "Error parsing arguments: " << e.what();
       return false;
     }
     std::cout << "No Args Provided" << std::endl;

@@ -33,7 +33,7 @@ STATIC_LIBS=-lpthread -lboost_program_options -lftd2xx -ldl -lrt
 LDFLAGS=-L. -L./libs libs/sh_linux_api.a ext/kompex/lib/libkompex-sqlite-wrapper.a
 CXXFLAGS=-g -g3 -Wall -O2 -std=c++11
 
-SOURCES=src/SHBackend.cpp src/SHBackendSQLite.cpp src/SHWrapper.cpp src/SignalHound.cpp src/sh-spectrum.cpp
+SOURCES=src/SHBackend.cpp src/SHBackendCSV.cpp src/SHBackendSQLite.cpp src/SHWrapper.cpp src/SignalHound.cpp src/sh-spectrum.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=sh-spectrum
 

@@ -48,12 +48,15 @@ namespace SignalHound {
 
     CLOG(DEBUG, "Wrapper") << "Initializing Signal Hound";
     int r = sh->initialize(); //Try to initialize
-    CLOG_IF(r != 0, DEBUG, "Wrapper") << "Signal Hound did not Intialize";
+    CLOG_IF( ((r != 0) && (mode != INFODISPLAY)), FATAL, "Wrapper") << "Signal Hound did not Intialize";
     
     if (mode == INFODISPLAY) {
       std::cout << sh->info();
       exit(0);
     }
+
+    if (r != 0) exit(-1);
+
     ok &= sh->verfyRFConfig(errmsg, sh_rfopts);
     CLOG_IF( !ok, ERROR, "Wrapper") << "Passed configuration is not valid for sweep operations.";
     CLOG_IF( !ok, ERROR, "Wrapper") << errmsg;
@@ -63,6 +66,7 @@ namespace SignalHound {
   bool SHWrapper::runSweeps() {
     bool rtn = true;
     if (sqlite) sqlite->newSweep(sh->info_m());
+    if (csv) csv->newSweep(sh->info_m());
     if (repetitions > 0) {
       CLOG(INFO, "Wrapper") << "Running a total of " << repetitions << " sweeps";
       for (int i=0; i< repetitions; i++)

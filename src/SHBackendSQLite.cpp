@@ -56,6 +56,10 @@ namespace SignalHound {
     ok = setOutput(dbfilename);
   }
   bool SHBackendSQLite::setOutput(std::string dbfilename) {
+    if (pDB) {
+      pDB->Close();
+      delete(pDB);
+    }
     pDB = new Kompex::SQLiteDatabase(dbfilename, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, 0);
     // create statement instance for sql queries/statements
     pStmt = new Kompex::SQLiteStatement(pDB);
@@ -72,65 +76,35 @@ namespace SignalHound {
   bool SHBackendSQLite::setFreqColumns(std::vector<int> columns, std::string *postfix) {
     return true;
   }
-    /* Setup table.  Postfix is some string to tack onto the end of the table name
-       functionally, there are 2 tables involved.  1 is the "sweep_metadata" table which
-       contains all the sweep parameters and a reference to the table that contains the data
-       ie: start_freq, stop_freq, ... , sweep_start_time, sweep_table.  The second table is 
-       `sweep_table` and it contains all the raw data with a couple beginning columns:
-       rowid, timestamp, freq_1, freq_2, freq_3, ... freq_n;  These tables may have variable
-       data lengths. (due to differing frequency values)
-    */
-
-       /*pStmt->SqlStatement("INSERT INTO user (userID, lastName, firstName, age, weight) VALUES (4, 'Lehmann', 'Carlene ', 17, 50.8)");
-
-    // ---------------------------------------------------------------------------------------------------------
-    // insert some data with Bind..() methods
-    pStmt->Sql("INSERT INTO user (userID, lastName, firstName, age, weight) VALUES(?, ?, ?, ?, ?);");
-    pStmt->BindInt(1, 5);
-    pStmt->BindString(2, "Murahama");
-    pStmt->BindString(3, "Yura");
-    pStmt->BindInt(4, 28);
-    pStmt->BindDouble(5, 60.2);
-    
-
-
-    data_table = currentTimeDate(false, "%Y%m%dT%H%M%S");
-    if (postfix)SWEEP_TABLE_PARAMS
-      data_table += std::string("_") + postfix;
-    CLOG(DEBUG, "SQLBackend") << " Creating a new database table with the name: " << data_table;
-    std::string tmp("(NULL, NULL"), sweep_table_create("CREATE TABLE " + data_table + " (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, data_table");
-    sweep_insert_proto = "INSERT INTO " + data_table + " (rowid, timestamp, data_table";
-
-*/
   bool SHBackendSQLite::newSweep(map_str_dbl metadata) {
     /*A new sweep is about to take place.  Add a new entry to the sweep_metadata table,
       create a new table for the sweep data, and adjust the internal data_table to point
       to the new table for further calls to SHBackendSQLite::addSweep() */
-      data_table = currentTimeDate(false, "sweep_%Y%m%dL%H%M%S");
-      CLOG(DEBUG, "SQLBackend") << " Creating a new database table with the name: " << data_table;
-      pStmt->Sql(metadata_insert_proto); //preload statement.  Now to bind
-      pStmt->BindString(1, currentTimeDate());
-      pStmt->BindString(2, data_table);
-      for(unsigned int i=0; i<metadata_params.size(); i++) {
-        pStmt->BindDouble(i+3, metadata[metadata_params.at(i)]);
-      }
-      try {
-        pStmt->ExecuteAndFree();
-        CLOG(DEBUG, "SQLBackend") << "Metadata successfully inserted";
-      } catch (Kompex::SQLiteException &e) {
-        CLOG(ERROR, "SQLBackend") << "Metadata unable to be inserted";
-        CLOG(ERROR, "SQLBackend") << "Reason given: " << e.GetErrorDescription();
-        return false;
-      }
-
-      //create new table
-      try {
-        pStmt->SqlStatement("CREATE TABLE [" + data_table + "] " + SWEEP_TABLE_PARAMS);
-      } catch (Kompex::SQLiteException &e) {
-        CLOG(ERROR, "SQLBackend") << "Could not create table" + data_table;
-        CLOG(ERROR, "SQLBackend") << "Reason given: " << e.GetErrorDescription();
-      }
+    data_table = currentTimeDate(false, "sweep_%Y%m%dL%H%M%S");
+    CLOG(DEBUG, "SQLBackend") << " Creating a new database table with the name: " << data_table;
+    pStmt->Sql(metadata_insert_proto); //preload statement.  Now to bind
+    pStmt->BindString(1, currentTimeDate());
+    pStmt->BindString(2, data_table);
+    for(unsigned int i=0; i<metadata_params.size(); i++) {
+      pStmt->BindDouble(i+3, metadata[metadata_params.at(i)]);
+    }
+    try {
+      pStmt->ExecuteAndFree();
+      CLOG(DEBUG, "SQLBackend") << "Metadata successfully inserted";
+    } catch (Kompex::SQLiteException &e) {
+      CLOG(ERROR, "SQLBackend") << "Metadata unable to be inserted";
+      CLOG(ERROR, "SQLBackend") << "Reason given: " << e.GetErrorDescription();
       return false;
+    }
+
+    //create new table
+    try {
+      pStmt->SqlStatement("CREATE TABLE [" + data_table + "] " + SWEEP_TABLE_PARAMS);
+    } catch (Kompex::SQLiteException &e) {
+      CLOG(ERROR, "SQLBackend") << "Could not create table" + data_table;
+      CLOG(ERROR, "SQLBackend") << "Reason given: " << e.GetErrorDescription();
+    }
+    return false;
   }
   bool SHBackendSQLite::addSweep(std::vector<double> dbvalues) {
     CLOG(DEBUG, "SQLBackend") << "Inserting Data";

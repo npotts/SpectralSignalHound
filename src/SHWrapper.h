@@ -35,6 +35,7 @@
 #include "SignalHound.h"
 #include "SHBackend.h"
 #include "SHBackendSQLite.h"
+ #include "SHBackendCSV.h"
 #include <boost/program_options.hpp>
 
 using namespace std;
@@ -62,5 +63,6 @@ namespace SignalHound {
       int mode;
       el::Logger* logger;
       SHBackendSQLite *sqlite;
+      SHBackendCSV *csv;
   };
 }

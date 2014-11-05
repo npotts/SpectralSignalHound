@@ -39,8 +39,7 @@ namespace SignalHound {
       delete(sh);
     el::Loggers::unregisterLogger("Wrapper");
   }
-  SHWrapper::SHWrapper(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), mode(SLOW_SWEEP) {
-    sqlite= NULL;
+  SHWrapper::SHWrapper(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), mode(SLOW_SWEEP), sqlite(NULL), csv(NULL) {
     logger = el::Loggers::getLogger("Wrapper");
     configureLoggers();
     std::string errmsg;
@@ -86,10 +85,10 @@ namespace SignalHound {
         ok &= sqlite->addSweep(sh->powers);
         CLOG_IF(!ok, ERROR, "Wrapper") << "Data not inserted!";
       }
-      /*if (sqlite) {
-        ok &= sqlite->addSweep(sh->powers);
-        CLOG_IF(!ok, ERROR, "Wrapper") << "Data not inserted!";
-      }*/
+      if (csv) {
+        ok &= csv->addSweep(sh->powers);
+        CLOG_IF(!ok, ERROR, "Wrapper") << "Data not add to CSV!";
+      }
     }
     return ok;
   }
@@ -208,6 +207,10 @@ namespace SignalHound {
       }
       if ( csvfname != "" ) {
         CLOG(DEBUG, "Wrapper") << "Initializing CSV: " << csvfname;
+        bool ok;
+        csv = new SHBackendCSV(ok, csvfname);
+        CLOG_IF(!ok, ERROR, "Wrapper") << "Unable to open csv.";
+        if (!ok) return false;
       }
       return true;
     } catch ( std::exception &e ) {

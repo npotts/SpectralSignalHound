@@ -40,20 +40,58 @@ namespace SignalHound {
     el::Loggers::unregisterLogger("Wrapper");
   }
   SHWrapper::SHWrapper(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), mode(SLOW_SWEEP) {
+    sqlite= NULL;
     logger = el::Loggers::getLogger("Wrapper");
+    configureLoggers();
     std::string errmsg;
     ok = parseArgs(argc, args);
     sh = new SignalHound(&sh_opts, &sh_rfopts);
+
+    CLOG(DEBUG, "Wrapper") << "Initializing Signal Hound";
+    int r = sh->initialize(); //Try to initialize
+    CLOG_IF(r != 0, DEBUG, "Wrapper") << "Signal Hound did not Intialize";
+    
     if (mode == INFODISPLAY) {
       std::cout << sh->info();
       exit(0);
     }
     ok &= sh->verfyRFConfig(errmsg, sh_rfopts);
-    if (!ok) {
-      CLOG(INFO, "Wrapper") << "Invalid Configuration";
-      return;
+    CLOG_IF( !ok, ERROR, "Wrapper") << "Passed configuration is not valid for sweep operations.";
+    CLOG_IF( !ok, ERROR, "Wrapper") << errmsg;
+    if (!ok) exit(-1);
+  }
+
+  bool SHWrapper::runSweeps() {
+    bool rtn = true;
+    if (sqlite) sqlite->newSweep(sh->info_m());
+    if (repetitions > 0) {
+      CLOG(INFO, "Wrapper") << "Running a total of " << repetitions << " sweeps";
+      for (int i=0; i< repetitions; i++)
+        rtn &= runSweep();
     }
-    CLOG(DEBUG, "Wrapper") << "Configuration is as follows" << std::endl << sh->info();
+    return rtn;
+  }
+
+  bool SHWrapper::runSweep() {
+    bool ok = true;
+    int req_size;
+    //run a single sweep, store data, then delay for pause_between_traces
+    CLOG(INFO, "Wrapper") << "Starting a Sweep";
+    req_size = sh->sweep();
+    ok &= (req_size > 0);
+    CLOG_IF(ok, INFO, "Wrapper") << "Sweep returned " << req_size << " data points";
+    CLOG_IF(!ok, WARNING, "Wrapper") << "Sweep returned an error of " << -req_size;
+    if (ok) {
+      if (sqlite) {
+        ok &= sqlite->addSweep(sh->powers);
+        CLOG_IF(!ok, ERROR, "Wrapper") << "Data not inserted!";
+      }
+      /*if (sqlite) {
+        ok &= sqlite->addSweep(sh->powers);
+        CLOG_IF(!ok, ERROR, "Wrapper") << "Data not inserted!";
+      }*/
+    }
+    return ok;
   }
 
   bool SHWrapper::parseArgs( int ac, char *av[]) {
@@ -68,14 +106,14 @@ namespace SignalHound {
       od_general.add_options()
       ( "help,h", "Show this message" )
       ( "version,V", "Print version information and quit" )
-      ( "log", po::value<std::string>()->default_value( "" ), "Write program log to file specified by arg. Defaults to stdout/stderr." )
+      ( "log", po::value<std::string>(&logfname)->default_value( "" ), "Write program log to file specified by arg. Defaults to stdout/stderr." )
       ( "quiet,q", "Setting this will cease all non-fatal displayed messages." )
       ( "verbose,v", "Setting this will cause a gratuitous amount of babble to be displayed.  This overrides --quiet." )
       ( "caldata,c", po::value<std::string>()->default_value( "" ) , "Use this file as the calibration data for the signal hound.  This should radically spead up initialization.  Use 'sh-extract-cal-data' to extract this calibration data and reference it here." )
       ( "attenuation", po::value<double>(&sh_opts.attenuation)->default_value( 10.0 ), "Set the internal input attenuation.  Must be one of the following values: 0.0, 5.0, 10.0 (default), or 15.0.  Any other value will revert to the default." )
       ( "low-mixer", "If flag is set, this will change the front end down converter to work with frequencies below 150MHz. If your frequency range will traverse above 150MHz, do not set this flag." )
       ( "sensitivity", po::value<int>(&sh_opts.sensitivity)->default_value( 0 ), "Set the sensitivity of the Signal Hound.  0 (default) is lowest sensitivity, 2 is the highest." )
-      ( "decimation", po::value<int>(&sh_opts.decimation)->default_value( 1 ), "Sample Rate is set to 486.111Ksps/arg.  Must be between [1, 16].  Resolution bandwidth is calculated from this and fft (below)." )
+      ( "decimate", po::value<int>(&sh_opts.decimation)->default_value( 1 ), "Sample Rate is set to 486.111Ksps/arg.  Must be between [1, 16].  Resolution bandwidth is calculated from this and fft (below)." )
       ( "alt-iflo", "If flag is set, this forces selection of the 2.9MHz Intermediate Frequency (IF) Local Oscillator (LO).  The default is 10.7MHz and has higher selectivity but lower sensitivity.  The 2.9MHz IF LO which features higher sensitivity yet lower selectivity." )
       ( "alt-clock", "If flag is set, this forces selection of the 22.5MHz ADC clock.  The default uses a 23-1/3 MHz clock, but changing this is helpful if the signal you are interested in is a multiple of a 23-1/3MHz." )
       //( "device", po::value<int>()->default_value( 0 ), "Select which Signal Hound Device to use.  Up to 8 can be connected to the same computer.  This seems to be disabled in the linux API" )
@@ -87,9 +125,9 @@ namespace SignalHound {
       ;
       po::options_description od_output( "Data Output" );
       od_output.add_options()
-      ( "database", po::value<std::string>()->default_value( "" ), "Write data into a sqlite database specified by the arg." )
-      ( "sql,s", po::value<std::string>()->default_value( "" ), "Produce a text files that could be used to import data into a database." )
-      ( "csv,c", po::value<std::string>()->default_value( "" ), "Produce a comma seperated file with data specified by arg." )
+      ( "db", po::value<std::string>(&dbfname)->default_value( "" ), "Write data into a sqlite database specified by the arg." )
+      //( "sql,s", po::value<std::string>()->default_value( "" ), "Produce a text files that could be used to import data into a database." )
+      ( "csv,c", po::value<std::string>(&csvfname)->default_value( "" ), "Produce a comma seperated file with data specified by arg." )
       ;
       po::options_description od_rfopts( "RF Options" );
       od_rfopts.add_options()
@@ -101,11 +139,11 @@ namespace SignalHound {
       ;
       po::options_description od_modes( "Sweep Modes" );
       od_modes.add_options()
-      ( "info", po::value<int>(&mode)->implicit_value(INFODISPLAY), "Calculated parameters and dumps a list of what would be done.  This is helpful if you want to see the Resolution Bandwidth (RBW) or other RF parameters" )
+      ( "info", po::value<int>(&mode)->implicit_value(INFODISPLAY), "Calculated parameters and dumps a list of what would be done.  This is helpful if you want to see the Resolution Bandwidth (RBW) or other RF parameters.  Due to limitations in the SignalHound API, some parameters will not be correct until the unit is initialized" )
       ( "fast", po::value<int>(&mode)->implicit_value(FAST_SWEEP), "Use fast sleep mode. Fast sweep captures a single sweep of data. The start_freq, and stop_freq are rounded to the nearest 200KHz. If fft=1, only the raw power is sampled, and samples are spaced 200KHz apart. If fft > 1, samples are spaced 200KHz.  RBW is set solely on FFT size as the decimation is equal to 1 (fixed internally)" )
       ( "slow", po::value<int>(&mode)->implicit_value(SLOW_SWEEP), "Use slow sweep mode. Slow sweep is which is more thorough and not bandwidth limited.  Data points will be spaced 486.111KHz/(fft*decimation).  Each measurement cycle will take: (40 + (fft*average*decimation)/486)*(stop_freq - start_freq)/201000 milliseconds, rounded up. Furthermore, fft*average must be a integer multiple of 512." )
       ( "delay", po::value<int>(&pause_between_traces)->default_value( 0 ), "In order to limit on the rediculously large file sizes, how long should this program pause between sweeps in milliseconds" )
-      ( "repetitions", po::value<int>(&repetitions)->default_value( -1 ), "How many sweeps should be done before exiting.  Default of -1 means sweep forever (well... at least until Ctrl-C hit or power cycled)" )
+      ( "repetitions", po::value<int>(&repetitions)->default_value( 5 ), "How many sweeps should be done before exiting.  Default of -1 means sweep forever (well... at least until Ctrl-C hit or power cycled)" )
       ;
       po::options_description all( "" );
       all.add( od_general ).add( od_rfopts ).add( od_modes ).add( od_output );
@@ -114,8 +152,10 @@ namespace SignalHound {
       po::notify( vm );
       if ( vm.count( "help" ) ) { std::cout << all << "\n"; exit( 0 );  }
       if ( vm.count("version") ) { std::cout << "sh-spectrum-logger rev-" << SVN_REV << std::endl; exit(0); }
-      if ( vm.count("log") && vm["log"].as<std::string>() != "" ) { 
-        el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, vm["log"].as<std::string>());
+      if ( logfname == "" ) {
+        el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "false");
+      } else {
+        el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, logfname);
       }
       if ( vm.count("quiet") ) verbosity = SILENT;
       if ( vm.count("verbose") ) verbosity = GRATUITOUS;
@@ -158,6 +198,17 @@ namespace SignalHound {
       if (sh_rfopts.fftsize == -1)
         sh_rfopts.fftsize = sh_rfopts.slowSweep ? 1024 : 16;
 
+      if ( dbfname != "" ) {
+        //user specified some database filename
+        CLOG(DEBUG, "Wrapper") << "Initializing Database: " << dbfname;
+        bool ok =false;
+        sqlite = new SHBackendSQLite(ok, dbfname);
+        CLOG_IF(!ok, ERROR, "Wrapper") << "Unable to open database.";
+        if (!ok) return false;
+      }
+      if ( csvfname != "" ) {
+        CLOG(DEBUG, "Wrapper") << "Initializing CSV: " << csvfname;
+      }
       return true;
     } catch ( std::exception &e ) {
       CLOG(FATAL, "Wrapper") <<  "Error parsing arguments: " << e.what();

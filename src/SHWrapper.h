@@ -47,15 +47,20 @@ namespace SignalHound {
                int, /**< [in] arg count, from main() */
                char *[] /**< [in] arg list*/);
       ~SHWrapper();
+      bool runSweeps();
     private:
       bool parseArgs(int, char *[]);
+      bool runSweep();
 
       SignalHound *sh;
       struct configOpts sh_opts;
       struct rfOpts sh_rfopts;
+      std::string logfname, dbfname, csvfname;
       int verbosity;
-      int pause_between_traces, repetitions;
+      int pause_between_traces;
+      int repetitions;
       int mode;
       el::Logger* logger;
+      SHBackendSQLite *sqlite;
   };
 }

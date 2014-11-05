@@ -38,6 +38,7 @@ namespace SignalHound {
   SHBackendSQLite::SHBackendSQLite(bool &ok, std::string dbfilename): SHBackend(ok, dbfilename) {
 
     logger = el::Loggers::getLogger("SQLBackend");
+    configureLoggers();
     pDB = NULL;
     pStmt = NULL;
     //build up the metadata table prototype because we have a more complete
@@ -59,11 +60,18 @@ namespace SignalHound {
     // create statement instance for sql queries/statements
     pStmt = new Kompex::SQLiteStatement(pDB);
     CLOG(DEBUG, "SQLBackend") << "Using SQLite Version: " << pDB->GetLibVersionNumber();
-    //create sweep_metadata table if it doesnt exist
-    pStmt->SqlStatement(METADATA_TABLE_CREATE);
-    return true;
+    try {
+      pStmt->SqlStatement(METADATA_TABLE_CREATE); //create sweep_metadata table if it doesnt exist
+      return true;
+    } catch (Kompex::SQLiteException &e) {
+      CLOG(ERROR, "SQLBackend") << "Unable to create metadata table: " << e.GetErrorDescription();
+      return false;
+    }
+    return false;
   }
   bool SHBackendSQLite::setFreqColumns(std::vector<int> columns, std::string *postfix) {
+    return true;
+  }
     /* Setup table.  Postfix is some string to tack onto the end of the table name
        functionally, there are 2 tables involved.  1 is the "sweep_metadata" table which
        contains all the sweep parameters and a reference to the table that contains the data
@@ -94,13 +102,11 @@ namespace SignalHound {
     sweep_insert_proto = "INSERT INTO " + data_table + " (rowid, timestamp, data_table";
 
 */
-       return true;
-  }
   bool SHBackendSQLite::newSweep(map_str_dbl metadata) {
     /*A new sweep is about to take place.  Add a new entry to the sweep_metadata table,
       create a new table for the sweep data, and adjust the internal data_table to point
       to the new table for further calls to SHBackendSQLite::addSweep() */
-      data_table = currentTimeDate(false, "%Y%m%dT%H%M%S");
+      data_table = currentTimeDate(false, "sweep_%Y%m%dL%H%M%S");
       CLOG(DEBUG, "SQLBackend") << " Creating a new database table with the name: " << data_table;
       pStmt->Sql(metadata_insert_proto); //preload statement.  Now to bind
       pStmt->BindString(1, currentTimeDate());
@@ -111,35 +117,38 @@ namespace SignalHound {
       try {
         pStmt->ExecuteAndFree();
         CLOG(DEBUG, "SQLBackend") << "Metadata successfully inserted";
-      } catch (std::exception &e) {
+      } catch (Kompex::SQLiteException &e) {
         CLOG(ERROR, "SQLBackend") << "Metadata unable to be inserted";
-        CLOG(ERROR, "SQLBackend") << "Reason given: " << e.what();
+        CLOG(ERROR, "SQLBackend") << "Reason given: " << e.GetErrorDescription();
         return false;
       }
 
       //create new table
       try {
-        pStmt->SqlStatement("CREATE TABLE " + data_table + " " + SWEEP_TABLE_PARAMS);
-      } catch (std::exception &e) {
+        pStmt->SqlStatement("CREATE TABLE [" + data_table + "] " + SWEEP_TABLE_PARAMS);
+      } catch (Kompex::SQLiteException &e) {
         CLOG(ERROR, "SQLBackend") << "Could not create table" + data_table;
-        CLOG(ERROR, "SQLBackend") << "Reason given: " << e.what();
+        CLOG(ERROR, "SQLBackend") << "Reason given: " << e.GetErrorDescription();
       }
       return false;
   }
-  bool SHBackendSQLite::insertData(std::vector<double> dbvalues) {
+  bool SHBackendSQLite::addSweep(std::vector<double> dbvalues) {
     CLOG(DEBUG, "SQLBackend") << "Inserting Data";
     std::stringstream data;
+    pStmt->BeginTransaction();
+    pStmt->Sql("INSERT INTO [" + data_table + "] (rowid, timestamp, csv) VALUES (NULL, ?, ?)");
     for(unsigned int i=0; i < dbvalues.size(); i++)
       data << dbvalues.at(i) << (i - 1 == dbvalues.size() ? "" : ",");
+    CLOG(DEBUG, "SQLBackend") << "dbvalues.size()" << dbvalues.size();
     try {
-      pStmt->Sql("INSERT INTO " + data_table + " (rowid, timestamp, csv) VALUES (NULL, ?, ?)");
       pStmt->BindString(1, currentTimeDate());
       pStmt->BindString(2, data.str());
       pStmt->ExecuteAndFree();
+      pStmt->CommitTransaction();
       return true;
-    } catch (std::exception &e) {
+    } catch (Kompex::SQLiteException &e) {
       CLOG(ERROR, "SQLBackend") << "Could not insert into " + data_table;
-      CLOG(ERROR, "SQLBackend") << "Reason given: " << e.what();
+      CLOG(ERROR, "SQLBackend") << "Reason given: " << e.GetErrorDescription();
       return false;
     }
     return false;

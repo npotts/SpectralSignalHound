@@ -58,6 +58,26 @@ namespace SignalHound {
     std::string rtn = std::string( buf, len );
     return rtn;
   }
+  void configureLoggers(bool ToFile, bool ToStandardOutput) {
+    //setup logging
+    el::Loggers::addFlag(el::LoggingFlag::DisableApplicationAbortOnFatalLog);
+    el::Loggers::addFlag(el::LoggingFlag::LogDetailedCrashReason);
+    el::Loggers::addFlag(el::LoggingFlag::ColoredTerminalOutput);
+    el::Loggers::addFlag(el::LoggingFlag::CreateLoggerAutomatically);
+    el::Loggers::addFlag(el::LoggingFlag::AutoSpacing); // turn LOG(DEBUG) << "a"<<"b"<<"c" to print as "a b c"
+    //because the default timestamp is all wacky, we need to recreate a few logging format
+    // INFO and WARNING are set to default by the global call below
+    el::Loggers::reconfigureAllLoggers(                   el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level - %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Debug,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] [%func] [%loc] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Error,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Fatal,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Verbose,el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level-%vlevel [%logger] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Trace,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] [%func] [%loc] %msg"));
+    //el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, "sh-spectrum.log");
+    //el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, ToFile ? "true" : "false"); //write to file
+    //el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, ToStandardOutput ? "true" : "false"); //write to file
+
+  }
   SignalHound::~SignalHound() {
     if ( sh_errno >= 0 ) {
       SHAPI_CyclePowerOnExit( sighound_struct );
@@ -68,24 +88,8 @@ namespace SignalHound {
   }
   SignalHound::SignalHound( struct configOpts *co, struct rfOpts *rfo ) {
     //get a custom logger for this class to spew into
-    //logger = el::Loggers::getLogger("SignalHound");
-    //setup logging
-    el::Loggers::addFlag(el::LoggingFlag::DisableApplicationAbortOnFatalLog);
-    el::Loggers::addFlag(el::LoggingFlag::LogDetailedCrashReason);
-    el::Loggers::addFlag(el::LoggingFlag::ColoredTerminalOutput);
-    el::Loggers::addFlag(el::LoggingFlag::CreateLoggerAutomatically);
-    el::Loggers::addFlag(el::LoggingFlag::AutoSpacing); // turn LOG(DEBUG) << "a"<<"b"<<"c" to print as "a b c"
-    //because the default timestamp is all wacky, we need to recreate a few logging format
-    // INFO and WARNING are set to default by the global call below
-    el::Loggers::reconfigureAllLoggers(                   el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level - %msg"));
-    el::Loggers::reconfigureAllLoggers(el::Level::Debug,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] [%user@%host] [%func] [%loc] %msg"));
-    el::Loggers::reconfigureAllLoggers(el::Level::Error,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] %msg"));
-    el::Loggers::reconfigureAllLoggers(el::Level::Fatal,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] %msg"));
-    el::Loggers::reconfigureAllLoggers(el::Level::Verbose,el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level-%vlevel [%logger] %msg"));
-    el::Loggers::reconfigureAllLoggers(el::Level::Trace,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] [%func] [%loc] %msg"));
-    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, "sh-spectrum.log");
-    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "true"); //write to file
-    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, "true"); //write to file
+    logger = el::Loggers::getLogger("SignalHound");
+    configureLoggers();
     //Initialize and create the signal hound
     if ( co )
       memcpy( &opts, co, sizeof( opts ) );
@@ -153,12 +157,10 @@ namespace SignalHound {
              ( 40 + 1.2 * ( rfopts.stop_freq - rfopts.start_freq ) / 200e3 ) ) / 1000.0;
   }
   int SignalHound::sweepCount() {
-    if ( sh_errno ) return -1;
     return rfopts.slowSweep ? SHAPI_GetSlowSweepCount( sighound_struct, rfopts.start_freq, rfopts.stop_freq, rfopts.fftsize ) : \
-           SHAPI_GetFastSweepCount( rfopts.start_freq, rfopts.stop_freq, rfopts.fftsize );
+                              SHAPI_GetFastSweepCount( rfopts.start_freq, rfopts.stop_freq, rfopts.fftsize );
   }
   double SignalHound::sweepStep( void ) {
-    if ( sh_errno ) return INFINITY;
     if ( rfopts.slowSweep ) {
       return 486111.111 / rfopts.fftsize / opts.decimation;
     } else { //fast sweep is a little different
@@ -173,18 +175,18 @@ namespace SignalHound {
     //check if we are doing a slow or fast sweep
     bool ok = true;
     ok &= ( ropts.stop_freq > ropts.start_freq );
-    if ( !ok ) {errmsg = "Stop Frequency must be higher than the Start Frequency"; return false;}
+    if ( !ok ) {errmsg = "Stop Frequency must be higher than the Start Frequency"; CLOG(WARNING, "SignalHound") << errmsg; return false;}
     ok &= ( (ropts.stop_freq < MAX_FREQ) && (ropts.start_freq > MIN_FREQ) );
-    if ( !ok ) {errmsg = "Allowable frequency range is from 1 Hz to 4.4GHz."; return false;}
+    if ( !ok ) {errmsg = "Allowable frequency range is from 1 Hz to 4.4GHz."; CLOG(WARNING, "SignalHound") << errmsg; return false;}
     if ( ropts.slowSweep ) {
       //check FFT length
       ok &= ( ( ropts.fftsize > 15 ) && ( ropts.fftsize <= 65536 ) && ( ( ropts.fftsize & ( ropts.fftsize - 1 ) ) == 0 ) );
-      if ( !ok ) {errmsg = "FFT Size must be in the range of [16, 65536] and a power of 2."; return false;}
+      if ( !ok ) {errmsg = "FFT Size must be in the range of [16, 65536] and a power of 2."; CLOG(WARNING, "SignalHound") << errmsg; return false;}
       ok &= ( ( ropts.average * ropts.fftsize ) % 512 == 0 );
-      if ( !ok ) {errmsg = "FFT Size * Average must be a multiple of 512"; return false;}
+      if ( !ok ) {errmsg = "FFT Size * Average must be a multiple of 512"; CLOG(WARNING, "SignalHound") << errmsg;  return false;}
     } else {
       ok &= ( ropts.fftsize == 1 ) | ( ( ropts.fftsize > 2 ) && ( ropts.fftsize <= 256 ) && ( ( ropts.fftsize & ( ropts.fftsize - 1 ) ) == 0 ) );
-      if ( !ok ) {errmsg = "FFT Size must be either 1 for raw sample, or in the range of [16, 256] and a power of 2."; return false;}
+      if ( !ok ) {errmsg = "FFT Size must be either 1 for raw sample, or in the range of [16, 256] and a power of 2."; CLOG(WARNING, "SignalHound") << errmsg; return false;}
     }
     return ok;
   }
@@ -243,7 +245,6 @@ namespace SignalHound {
   std::string SignalHound::info() {
     //create a formmatted string of status data
     std::stringstream rtn;
-    int samples = sweepCount();
     rtn << "Frequency Start:                \t" << ( unsigned long ) rfopts.start_freq << " Hz" << std::endl;
     rtn << "Frequency Stop:                 \t" << ( unsigned long ) rfopts.stop_freq << " Hz" << std::endl;
     rtn << "Frequency Span:                 \t" << ( unsigned long )( rfopts.stop_freq - rfopts.start_freq ) << " Hz" << std::endl;
@@ -253,7 +254,7 @@ namespace SignalHound {
     rtn << "FFT Width:                      \t" << rfopts.fftsize << std::endl;
     rtn << "Image Rejection:                \t" << ( rfopts.image_rejection == 0 ? "On" : ( rfopts.image_rejection == 1 ? "High Side Only" : "Low Side Only" ) ) << std::endl;
     rtn << "Slow Sweep Average:             \t" << rfopts.average << std::endl;
-    rtn << "Points per Sweep:               \t" << samples << std::endl;
+    rtn << "Points per Sweep:               \t" << sweepCount() << std::endl;
     rtn << "Time per Sweep                  \t" << sweepTime() << " s" << std::endl;
     rtn << "Sweep Type:                     \t" << ( rfopts.slowSweep ? "Slow" : "Fast" ) << std::endl;
     rtn << "Attenuation (dBm):              \t" << ( int ) opts.attenuation << std::endl;

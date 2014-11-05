@@ -122,6 +122,7 @@ namespace SignalHound {
    * you can also provide another format to pass to snprintf.  Using defaults
    * will return something like 2014-04-05 06:07:08.123456
    */
+  void configureLoggers(bool ToFile=true, bool ToStandardOutput=true);
   std::string currentTimeDate(bool include_ms = true, const char* format = "%Y-%m-%d %H:%M:%S");
 
   class SignalHound {

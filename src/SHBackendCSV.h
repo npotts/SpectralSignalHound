@@ -35,33 +35,23 @@
 
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include "SHBackend.h"
 #include "SignalHound.h"
 
-#include "../ext/kompex/include/KompexSQLiteBlob.h"
-#include "../ext/kompex/include/KompexSQLiteStatement.h"
-#include "../ext/kompex/include/KompexSQLiteDatabase.h"
-#include "../ext/kompex/include/KompexSQLiteException.h"
 
 using namespace std;
 namespace SignalHound {
-  typedef std::vector<std::string> vstr;
-
- #define METADATA_TABLE_CREATE "CREATE TABLE IF NOT EXISTS sweep_metadata (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, attenuation DOUBLE NOT NULL, mixerband INT NOT NULL, sensitivity INT NOT NULL, decimation INT NOT NULL, iflo_path INT NOT NULL, adcclk_path INT NOT NULL, deviceid INT NOT NULL, docal INT NOT NULL, preset INT NOT NULL, ext_ref INT NOT NULL, preamp INT NOT NULL, ext_trigger INT NOT NULL, slowsweep INT NOT NULL, start_freq DOUBLE NOT NULL, stop_freq DOUBLE NOT NULL, span DOUBLE NOT NULL, center_mean DOUBLE NOT NULL, center_geometric DOUBLE NOT NULL, fftsize INT NOT NULL, image_rejection INT NOT NULL, average INT NOT NULL, valid INT NOT NULL, temperature DOUBLE NOT NULL, rbw DOUBLE NOT NULL, sweep_count INT NOT NULL, sweep_time DOUBLE NOT NULL, sweep_step DOUBLE NOT NULL, data_table TEXT)"
- #define SWEEP_TABLE_PARAMS "(rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, csv TEXT)"
- class SHBackendSQLite: public SHBackend {
+ class SHBackendCSV: public SHBackend {
   public:
-    ~SHBackendSQLite();
-    SHBackendSQLite(bool &ok, std::string);
+    ~SHBackendCSV();
+    SHBackendCSV(bool &ok, std::string);
     bool setOutput(std::string);
     bool newSweep(map_str_dbl);
     bool addSweep(std::vector<double>);
   private:
-    vstr metadata_params;
-    std::string data_table, metadata_insert_proto, sweep_insert_proto;
-    Kompex::SQLiteDatabase *pDB;
-    Kompex::SQLiteStatement *pStmt;
+    std::ofstream csv;
     el::Logger* logger;
 
  };

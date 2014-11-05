@@ -36,9 +36,7 @@ namespace SignalHound {
     el::Loggers::unregisterLogger("SQLBackend");
   }
   SHBackendSQLite::SHBackendSQLite(bool &ok, std::string dbfilename): SHBackend(ok, dbfilename) {
-
-    logger = el::Loggers::getLogger("SQLBackend");
-    configureLoggers();
+    logger = getSignalHoundLogger("SQLBackend");
     pDB = NULL;
     pStmt = NULL;
     //build up the metadata table prototype because we have a more complete
@@ -72,9 +70,6 @@ namespace SignalHound {
       return false;
     }
     return false;
-  }
-  bool SHBackendSQLite::setFreqColumns(std::vector<int> columns, std::string *postfix) {
-    return true;
   }
   bool SHBackendSQLite::newSweep(map_str_dbl metadata) {
     /*A new sweep is about to take place.  Add a new entry to the sweep_metadata table,

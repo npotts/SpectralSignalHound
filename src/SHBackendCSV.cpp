@@ -29,22 +29,51 @@
  *
  */
 
+#include "SHBackendCSV.h"
 
-#pragma once
-
-#include "SignalHound.h"
-
-using namespace std;
 namespace SignalHound {
-  class SHBackend {
-    public:
-      SHBackend(bool &ok, std::string);
-      ~SHBackend();
-      virtual bool setOutput(std::string)=0; /// Set the output file parameters.
-      virtual bool newSweep(map_str_dbl metadata)=0; ///Instructs the backend a new sweep is about to take place.
-      virtual bool addSweep(std::vector<double>)=0; //add sweep data to output product
-     protected:
-      std::string filename;
-      int columns;
-  };
-}
+  SHBackendCSV::~SHBackendCSV() {
+    el::Loggers::unregisterLogger("CSVBackend");
+  }
+  SHBackendCSV::SHBackendCSV(bool &ok, std::string dbfilename): SHBackend(ok, dbfilename) {
+    logger = getSignalHoundLogger("CSVBackend");
+    ok = setOutput(dbfilename);
+  }
+  bool SHBackendCSV::setOutput(std::string dbfilename) {
+    if (csv.is_open())
+      csv.close();
+    csv.open(dbfilename.c_str());
+    return csv.is_open();
+  }
+  bool SHBackendCSV::newSweep(map_str_dbl metadata) {
+    /**< A new sweep is about to take place - Write out the headers.*/
+    try {
+      CLOG(DEBUG, "CSVBackend") << metadata;
+      csv << "Timestamp";
+      double freq = metadata["start_freq"];
+      double fstep = metadata["sweep_step"];
+      unsigned int fcount = (int) metadata["sweep_count"];
+      for(unsigned int i=0; i < fcount; i++) {
+        csv << "," << (int) (freq + fstep*i);
+      } csv << std::endl;
+      CLOG(INFO, "CSVBackend") << "CSV headers written";
+      return true;
+    } catch (std::exception &e) {
+      CLOG(FATAL, "CSVBackend") << "Unable to write CSV headers: " << e.what();
+    }
+    return false;
+  }
+  bool SHBackendCSV::addSweep(std::vector<double> dbvalues) {
+    try {
+      CLOG(DEBUG, "CSVBackend") << "Inserting Data";
+      csv << currentTimeDate();
+      for(unsigned int i=0; i < dbvalues.size(); i++)
+        csv << "," << dbvalues.at(i);
+      csv << std::endl;
+      return true;
+    } catch (std::exception &e) {
+      CLOG(FATAL, "CSVBackend") << "Error writing data: " << e.what();
+    }
+    return false;
+  }
+};

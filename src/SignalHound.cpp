@@ -34,11 +34,12 @@
 //initialize easylogging++
 _INITIALIZE_EASYLOGGINGPP
 
-/* Log types available:
+/* Log types available: (in hierarchical order):
 LOG(INFO);
-LOG(DEBUG);
 LOG(WARNING);
 LOG(ERROR);
+LOG(FATAL);
+LOG(DEBUG);
 LOG(TRACE);
 */
 
@@ -58,25 +59,32 @@ namespace SignalHound {
     std::string rtn = std::string( buf, len );
     return rtn;
   }
-  void configureLoggers(bool ToFile, bool ToStandardOutput) {
+  /// Initialize logger to default to stdout
+  bool tostdout = true;
+  el::Level log_level = el::Level::Error;
+
+  el::Logger* getSignalHoundLogger(std::string label) {
+    el::Logger* logger = NULL;
+    if (label.size())
+      logger = el::Loggers::getLogger(label);
     //setup logging
     el::Loggers::addFlag(el::LoggingFlag::DisableApplicationAbortOnFatalLog);
     el::Loggers::addFlag(el::LoggingFlag::LogDetailedCrashReason);
     el::Loggers::addFlag(el::LoggingFlag::ColoredTerminalOutput);
     el::Loggers::addFlag(el::LoggingFlag::CreateLoggerAutomatically);
     el::Loggers::addFlag(el::LoggingFlag::AutoSpacing); // turn LOG(DEBUG) << "a"<<"b"<<"c" to print as "a b c"
+    el::Loggers::addFlag(el::LoggingFlag::HierarchicalLogging);
     //because the default timestamp is all wacky, we need to recreate a few logging format
     // INFO and WARNING are set to default by the global call below
     el::Loggers::reconfigureAllLoggers(                   el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level - %msg"));
-    el::Loggers::reconfigureAllLoggers(el::Level::Debug,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] [%func] [%loc] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Debug,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] [%loc] %msg"));
     el::Loggers::reconfigureAllLoggers(el::Level::Error,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] %msg"));
     el::Loggers::reconfigureAllLoggers(el::Level::Fatal,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] %msg"));
     el::Loggers::reconfigureAllLoggers(el::Level::Verbose,el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level-%vlevel [%logger] %msg"));
     el::Loggers::reconfigureAllLoggers(el::Level::Trace,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] [%func] [%loc] %msg"));
-    //el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, "sh-spectrum.log");
-    //el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, ToFile ? "true" : "false"); //write to file
-    //el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, ToStandardOutput ? "true" : "false"); //write to file
-
+    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, tostdout ? "true": "false");
+    el::Loggers::setLoggingLevel(log_level);
+    return logger;
   }
   SignalHound::~SignalHound() {
     if ( sh_errno >= 0 ) {
@@ -87,9 +95,9 @@ namespace SignalHound {
     el::Loggers::unregisterLogger("SignalHound");
   }
   SignalHound::SignalHound( struct configOpts *co, struct rfOpts *rfo ) {
+    tostdout = true;
     //get a custom logger for this class to spew into
-    logger = el::Loggers::getLogger("SignalHound");
-    configureLoggers();
+    logger = getSignalHoundLogger("SignalHound");
     //Initialize and create the signal hound
     if ( co )
       memcpy( &opts, co, sizeof( opts ) );

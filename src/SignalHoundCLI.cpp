@@ -41,10 +41,10 @@ namespace SignalHound {
   }
   SignalHoundCLI::SignalHoundCLI(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), mode(SLOW_SWEEP), sqlite(NULL), csv(NULL) {
     logger = getSignalHoundLogger("SignalHoundCLI");
+    getSignalHoundLogger("SignalHound"); //for whatever reason, initializing this in SignalHound::SignalHound does not work properly.  Do it here instead
     std::string errmsg;
     ok = parseArgs(argc, args);
     sh = new SignalHound(&sh_opts, &sh_rfopts);
-
     CLOG(DEBUG, "SignalHoundCLI") << "Initializing Signal Hound";
     int r = sh->initialize(); //Try to initialize
     CLOG_IF( ((r != 0) && (mode != INFODISPLAY)), FATAL, "SignalHoundCLI") << "Signal Hound did not Intialize";
@@ -107,6 +107,7 @@ namespace SignalHound {
       od_general.add_options()
       ( "help,h", "Show this message" )
       ( "version,V", "Print version information and quit" )
+      ( "nostdout", "Nothing will be printed to stdout. Return value will indicate fatal errors. If you want to see errors, you can still use --log below." )
       ( "log", po::value<std::string>(&logfname)->default_value( "" ), "Write program log to file specified by arg. Defaults to stdout/stderr." )
       ( "verbose,v", "Setting this will cause a gratuitous amount of babble to be displayed.  This overrides --quiet." )
       ( "caldata,c", po::value<std::string>()->default_value( "" ) , "Use this file as the calibration data for the signal hound.  This should radically spead up initialization.  Use 'sh-extract-cal-data' to extract this calibration data and reference it here." )
@@ -159,8 +160,9 @@ namespace SignalHound {
         el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, logfname);
         el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "true");
       }
-      //el::Loggers::setLoggingLevel(el::Level::Info|el::Level::Error);
-      //Logger is already set to el::Level::Error
+      if ( vm.count("nostdout") )  { std::cout << "Shutting it up " << std::endl; tostdout = false;}
+      //Logger is already set to el::Level::Error, they want more...
+      log_level = el::Level::Error;
       if ( vm.count("verbose") ) log_level = el::Level::Trace;
       getSignalHoundLogger(); //reconfigures output
 

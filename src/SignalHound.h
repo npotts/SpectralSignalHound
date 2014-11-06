@@ -44,11 +44,12 @@
 #include <stdlib.h>
 #include "SHLAPI.h"
 
-#define _ELPP_THREAD_SAFE 1
+#define _ELPP_THREAD_SAFE 0
 #define _ELPP_STL_LOGGING 1
 #define _ELPP_BOOST_LOGGING 1
 #define _ELPP_STACKTRACE_ON_CRASH 1
 #define _ELPP_NO_DEFAULT_LOG_FILE 1
+#define _ELPP_STACKTRACE_ON_CRASH 1
 #include "../ext/easyloggingpp/src/easylogging++.h"
 
 namespace SignalHound {
@@ -115,6 +116,23 @@ namespace SignalHound {
     }
   };
 
+  extern bool tostdout; ///If true, logging will be written to stdout
+  extern el::Level log_level; ///Level of logging to display
+  /** \brief gets a custom named logging object
+   *
+   * If passed a non-empty string, it will create a named custom logger 
+   * from the passed string in localtime format.  It also forces formatting
+   * on all existing loggers.  If passed an empty string, it just reconfigures
+   * existing loggers.  Two namespace variables affect the formatting.  If 
+   * SignalHound::tostdout is false, stdout will be muted entirely.  All error
+   * messages not written to a log (which must be setup outside of this library)
+   * will be lost.  stdcout defaults to true. SignalHound::log_level is the minimum
+   * log level to record messages from (TRACE > DEBUG > FATAL > ERROR > WARN > INFO). 
+   * log_level defaults to el::Logging::Fatal
+   */
+  //extern void configLogger(
+  extern el::Logger* getSignalHoundLogger(std::string  label = "");
+
   /** \brief Returns a string representation of the current date and time
    *
    * This low level function returns a string representation of the !LOCALTIME! 
@@ -122,8 +140,7 @@ namespace SignalHound {
    * you can also provide another format to pass to snprintf.  Using defaults
    * will return something like 2014-04-05 06:07:08.123456
    */
-  void configureLoggers(bool ToFile=true, bool ToStandardOutput=true);
-  std::string currentTimeDate(bool include_ms = true, const char* format = "%Y-%m-%d %H:%M:%S");
+  extern std::string currentTimeDate(bool include_ms = true, const char* format = "%Y-%m-%d %H:%M:%S");
 
   class SignalHound {
     public:

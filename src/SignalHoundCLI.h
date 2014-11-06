@@ -31,6 +31,7 @@
 
 
 #pragma once
+#include <unistd.h>
 #include <fstream>
 #include "SignalHound.h"
 #include "SHBackend.h"

@@ -92,6 +92,7 @@ namespace SignalHound {
         CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Data not added to CSV!";
       }
     }
+    usleep(pause_between_traces); //sleep between traces
     return ok;
   }
 

@@ -31,8 +31,8 @@ SHLAPI.h
 Header for the signalhound.  Taken directly from [here] (https://www.signalhound.com/sigdownloads/SA44B/linux_shapi_x86_64.zip) from [this page](https://www.signalhound.com/support/downloads/sa44b-sa124b-downloads).
 
 
-TODO:
------
+TODO / Feature Creep:
+---------------------
 
 - ~~Logging~~
 	- ~~Turn on/off debugging logs on terminal~~
@@ -46,5 +46,7 @@ TODO:
 - ~~SQLite output~~
 	- ~~verify working~~
 - Add functionality to dump the cal data to a file
+- Read a .ini config file to configure sweeps
+	- named sweeps with multiple settings in a config file
 - Plotting
 	- How to display data eloquently and usefully.

@@ -31,13 +31,13 @@
 
 #include <iostream>
 #include "SignalHound.h"
-#include "SHWrapper.h"
+#include "SignalHoundCLI.h"
 
 
 using namespace SignalHound;
 
 int main( int args, char *argv[] ) {
   bool ok;
-  SHWrapper shwrap(ok, args, argv);
-  shwrap.runSweeps();
+  SignalHoundCLI shcli(ok, args, argv);
+  shcli.runSweeps();
 }

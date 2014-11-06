@@ -59,29 +59,36 @@ namespace SignalHound {
     std::string rtn = std::string( buf, len );
     return rtn;
   }
-  /// Initialize logger to default to stdout
-  bool tostdout = true;
-  el::Level log_level = el::Level::Error;
+
+  bool tostdout = true; /// Initialize logger to default to stdout
+  el::Level log_level = el::Level::Debug; ///Error messages should be Fatal and below.
 
   el::Logger* getSignalHoundLogger(std::string label) {
     el::Logger* logger = NULL;
-    if (label.size())
+    if (label != "") {
       logger = el::Loggers::getLogger(label);
+      if (logger == NULL) {
+        std::cout << "Logger " << label << " already exists" << std::endl;
+        return NULL;
+      }
+    }
     //setup logging
+    el::Loggers::addFlag(el::LoggingFlag::NewLineForContainer);
+    el::Loggers::addFlag(el::LoggingFlag::HierarchicalLogging);
     el::Loggers::addFlag(el::LoggingFlag::DisableApplicationAbortOnFatalLog);
     el::Loggers::addFlag(el::LoggingFlag::LogDetailedCrashReason);
     el::Loggers::addFlag(el::LoggingFlag::ColoredTerminalOutput);
-    el::Loggers::addFlag(el::LoggingFlag::CreateLoggerAutomatically);
-    el::Loggers::addFlag(el::LoggingFlag::AutoSpacing); // turn LOG(DEBUG) << "a"<<"b"<<"c" to print as "a b c"
-    el::Loggers::addFlag(el::LoggingFlag::HierarchicalLogging);
+    //el::Loggers::addFlag(el::LoggingFlag::CreateLoggerAutomatically);
+    el::Loggers::addFlag(el::LoggingFlag::AutoSpacing); // LOG(DEBUG) << "a"<<"b"<<"c" prints as "a b c"
+    el::Loggers::addFlag(el::LoggingFlag::ImmediateFlush);
     //because the default timestamp is all wacky, we need to recreate a few logging format
     // INFO and WARNING are set to default by the global call below
-    el::Loggers::reconfigureAllLoggers(                   el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level - %msg"));
-    el::Loggers::reconfigureAllLoggers(el::Level::Debug,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] [%loc] %msg"));
-    el::Loggers::reconfigureAllLoggers(el::Level::Error,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] %msg"));
-    el::Loggers::reconfigureAllLoggers(el::Level::Fatal,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] %msg"));
-    el::Loggers::reconfigureAllLoggers(el::Level::Verbose,el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level-%vlevel [%logger] %msg"));
-    el::Loggers::reconfigureAllLoggers(el::Level::Trace,  el::ConfigurationType::Format, std::string("%datetime{%Y-%m-%d %H:%M:%s.%g} %level [%logger] [%func] [%loc] %msg"));
+    el::Loggers::reconfigureAllLoggers(                   el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Error,  el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level [%loc] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Fatal,  el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level [%loc] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Debug,  el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level [%loc] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Trace,  el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level [%func] [%loc] %msg"));
+    el::Loggers::reconfigureAllLoggers(el::Level::Verbose,el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level-%vlevel [%logger] %msg"));
     el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, tostdout ? "true": "false");
     el::Loggers::setLoggingLevel(log_level);
     return logger;
@@ -95,7 +102,6 @@ namespace SignalHound {
     el::Loggers::unregisterLogger("SignalHound");
   }
   SignalHound::SignalHound( struct configOpts *co, struct rfOpts *rfo ) {
-    tostdout = true;
     //get a custom logger for this class to spew into
     logger = getSignalHoundLogger("SignalHound");
     //Initialize and create the signal hound
@@ -109,27 +115,36 @@ namespace SignalHound {
     //check malloc
     if ( sighound_struct == NULL )
       std::cerr << "malloc() failed?  The OOM killer is lurking nearby...." << std::endl;
+    CLOG(DEBUG, "SignalHound") << "SignalHound object allocated and ready for Initialization";
   }
   int SignalHound::initialize( struct configOpts *co ) {
     if ( co )
       memcpy( &opts, co, sizeof( opts ) );
     //initialize.  Check if we can short cut with cal data
     if ( opts.docal ) { //yes, take the shortcut, but this does not seem to work any faster.  eh?
+      CLOG(DEBUG, "SignalHound") << "Taking 'shorter' route with calibration data";
       sh_errno = SHAPI_InitializeEx( sighound_struct, opts.caldata );
     } else {
+      CLOG(DEBUG, "SignalHound") << "Taking 'longer' route without calibration data";
       sh_errno = SHAPI_Initialize( sighound_struct );
       //copy cal data over now hat we have it
       if ( sh_errno == 0 ) {
+        CLOG(DEBUG, "SignalHound") << "Copying cal data to internal array";
         SHAPI_CopyCalTable( sighound_struct, opts.caldata );
         opts.docal = true;
       }
     }
+    CLOG_IF( sh_errno != 0, ERROR, "SignalHound") << "Unable to Initialize Signal Hound";
     if ( sh_errno != 0 ) return sh_errno;
 
+    CLOG_IF( opts.preset, DEBUG, "SignalHound") << "Presetting Unit to Known State";
     if ( opts.preset ) { //Preset the unit
-      if ( ( sh_errno = SHAPI_CyclePort( sighound_struct ) ) != 0 )
+      if ( ( sh_errno = SHAPI_CyclePort( sighound_struct ) ) != 0 ) {
+        CLOG_IF( sh_errno != 0, ERROR, "SignalHound") << "Unable to Preset the Signal Hound";
         return sh_errno;
+      }
     }
+    CLOG_IF( opts.preset, DEBUG, "SignalHound") << "Signal Hound Successfully Preset";
 
     //now configure
     if ( ( sh_errno = SHAPI_Configure( sighound_struct,
@@ -138,10 +153,16 @@ namespace SignalHound {
                                     opts.sensitivity,
                                     opts.decimation,
                                     opts.iflo_path,
-                                    opts.adcclk_path ) ) != 0 )
+                                    opts.adcclk_path ) ) != 0 ) {
+      CLOG_IF( opts.preset, ERROR, "SignalHound") << "Unable to Configure the Signal Hound.  errno =" << sh_errno;
       return sh_errno;
+    }
+
     //Setup External Ref if asked
-    if ( opts.ext_ref && ( ( sh_errno = SHAPI_SelectExt10MHz( sighound_struct ) ) != 0 ) ) return sh_errno;
+    if ( opts.ext_ref && ( ( sh_errno = SHAPI_SelectExt10MHz( sighound_struct ) ) != 0 ) )  {
+      CLOG( ERROR, "SignalHound") << "Unable to set External Reference.  Does it have a large enough signal level?  errno =" << sh_errno;
+      return sh_errno;
+    }
 
     if ( opts.preamp )
       SHAPI_SetPreamp( sighound_struct, 1 );
@@ -206,6 +227,7 @@ namespace SignalHound {
     if ( !verfyRFConfig( errmsg, rfopts ) ) return 0;
     //make sure the vectors are large enough
     int req_size = sweepCount(), sweep_return = 0;
+    CLOG(DEBUG, "SignalHound") << "Sweeping with " << req_size << " data points";
     powers.reserve( req_size > 0 ? req_size : 0 ); //make sure we have enough slots to hold,  should be fast
     powers.resize( req_size > 0 ? req_size : 0 ); //this changes the size
 

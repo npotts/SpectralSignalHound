@@ -47,12 +47,11 @@ namespace SignalHound {
     sh = new SignalHound(&sh_opts, &sh_rfopts);
     CLOG(DEBUG, "SignalHoundCLI") << "Initializing Signal Hound";
     int r = sh->initialize(); //Try to initialize
-    CLOG_IF( ((r != 0) && (mode != INFODISPLAY)), FATAL, "SignalHoundCLI") << "Signal Hound did not Intialize";
-    
-    if (mode == INFODISPLAY) {
+    if (mode == INFODISPLAY) { //who cares if we init it.  Show parameters in either case
       std::cout << sh->info();
       exit(0);
     }
+    CLOG_IF( ((r != 0) && (mode != INFODISPLAY)), FATAL, "SignalHoundCLI") << "Signal Hound did not intialize()";
 
     if (r != 0) exit(-1);
 
@@ -81,7 +80,7 @@ namespace SignalHound {
     CLOG(INFO, "SignalHoundCLI") << "Starting a Sweep";
     req_size = sh->sweep();
     ok &= (req_size > 0);
-    CLOG_IF(ok, INFO, "SignalHoundCLI") << "Sweep returned " << req_size << " data points";
+    CLOG_IF(ok, DEBUG, "SignalHoundCLI") << "Sweep returned " << req_size << " data points";
     CLOG_IF(!ok, WARNING, "SignalHoundCLI") << "Sweep returned an error of " << -req_size;
     if (ok) {
       if (sqlite) {
@@ -90,7 +89,7 @@ namespace SignalHound {
       }
       if (csv) {
         ok &= csv->addSweep(sh->powers);
-        CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Data not add to CSV!";
+        CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Data not added to CSV!";
       }
     }
     return ok;

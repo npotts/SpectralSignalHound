@@ -1,4 +1,4 @@
-SpectralSignalHound
+Plotting Utilities
 ===================
 
-A RF Spectral Logger using a Signal Hound SA44B SDR.
+These are utilities to help in plotting the RF data logged with the tool.

@@ -41,7 +41,7 @@ namespace SignalHound {
   }
   SignalHoundCLI::SignalHoundCLI(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), mode(SLOW_SWEEP), sqlite(NULL), csv(NULL) {
     logger = getSignalHoundLogger("SignalHoundCLI");
-    getSignalHoundLogger("SignalHound"); //for whatever reason, initializing this in SignalHound::SignalHound does not work properly.  Do it here instead
+    //getSignalHoundLogger("SignalHound"); //for whatever reason, initializing this in SignalHound::SignalHound does not work properly.  Do it here instead
     std::string errmsg;
     ok = parseArgs(argc, args);
     sh = new SignalHound(&sh_opts, &sh_rfopts);
@@ -51,13 +51,25 @@ namespace SignalHound {
       std::cout << sh->info();
       exit(0);
     }
-    CLOG_IF( ((r != 0) && (mode != INFODISPLAY)), FATAL, "SignalHoundCLI") << "Signal Hound did not intialize()";
+    CLOG_IF( (r != 0), FATAL, "SignalHoundCLI") << "Signal Hound did not intialize().  errno=" << r;
 
     if (r != 0) exit(-1);
 
+    if (calout != "") { //capture cal data
+      CLOG(INFO, "SignalHoundCLI") << "Saving Cal Data";
+      ok = false;
+      try {
+        ok = sh->saveCalData(calout);
+        CLOG_IF( !ok , FATAL, "SignalHoundCLI") << "Unable to save cal data to" << calout;
+        CLOG_IF( ok , INFO, "SignalHoundCLI") << "Calibration data saved to" << calout;
+      } catch (std::exception &e) {
+        CLOG( FATAL, "SignalHoundCLI") << "Unable to save cal data to" << calout << "with error" << e.what();
+      }
+      exit( ok ? 0 : -1);
+    }
     ok &= sh->verfyRFConfig(errmsg, sh_rfopts);
-    CLOG_IF( !ok, ERROR, "SignalHoundCLI") << "Passed configuration is not valid for sweep operations.";
-    CLOG_IF( !ok, ERROR, "SignalHoundCLI") << errmsg;
+    CLOG_IF( (!ok), ERROR, "SignalHoundCLI") << "Passed configuration is not valid for sweep operations.";
+    CLOG_IF( (!ok), ERROR, "SignalHoundCLI") << errmsg;
     if (!ok) exit(-1);
   }
 
@@ -108,9 +120,9 @@ namespace SignalHound {
       ( "help,h", "Show this message" )
       ( "version,V", "Print version information and quit" )
       ( "nostdout", "Nothing will be printed to stdout. Return value will indicate fatal errors. If you want to see errors, you can still use --log below." )
-      ( "log", po::value<std::string>(&logfname)->default_value( "" ), "Write program log to file specified by arg. Defaults to stdout/stderr." )
+      ( "log,l", po::value<std::string>(&logfname)->default_value( "" ), "Write program log to file specified by arg. Defaults to stdout/stderr." )
       ( "verbose,v", "Setting this will cause a gratuitous amount of babble to be displayed.  This overrides --quiet." )
-      ( "caldata,c", po::value<std::string>()->default_value( "" ) , "Use this file as the calibration data for the signal hound.  This should radically spead up initialization.  Use 'sh-extract-cal-data' to extract this calibration data and reference it here." )
+      ( "caldata", po::value<std::string>()->default_value( "" ) , "Use this file as the calibration data for the signal hound.  This should radically spead up initialization.  Use 'sh-extract-cal-data' to extract this calibration data and reference it here." )
       ( "attenuation", po::value<double>(&sh_opts.attenuation)->default_value( 10.0 ), "Set the internal input attenuation.  Must be one of the following values: 0.0, 5.0, 10.0 (default), or 15.0.  Any other value will revert to the default." )
       ( "low-mixer", "If flag is set, this will change the front end down converter to work with frequencies below 150MHz. If your frequency range will traverse above 150MHz, do not set this flag." )
       ( "sensitivity", po::value<int>(&sh_opts.sensitivity)->default_value( 0 ), "Set the sensitivity of the Signal Hound.  0 (default) is lowest sensitivity, 2 is the highest." )
@@ -128,7 +140,7 @@ namespace SignalHound {
       od_output.add_options()
       ( "db", po::value<std::string>(&dbfname)->default_value( "" ), "Write data into a sqlite database specified by the arg." )
       //( "sql,s", po::value<std::string>()->default_value( "" ), "Produce a text files that could be used to import data into a database." )
-      ( "csv,c", po::value<std::string>(&csvfname)->default_value( "" ), "Produce a comma seperated file with data specified by arg." )
+      ( "csv", po::value<std::string>(&csvfname)->default_value( "" ), "Produce a comma seperated file with data specified by arg." )
       ;
       po::options_description od_rfopts( "RF Options" );
       od_rfopts.add_options()
@@ -138,14 +150,14 @@ namespace SignalHound {
       ( "fft", po::value<int>(&sh_rfopts.fftsize)->default_value( -1 ), "Size of the FFT. Default value of -1 will autoselect the prefered FFT window. This and the decimation setting are used to calculate the RBW. In --slow mode, may be 16-65536 in powers of 2 while the default resolves to 1024.  In --fast mode, may be 1, 16-256 in powers of 2 while the default resolves to 16." )
       ( "average", po::value<int>(&sh_rfopts.average)->default_value( 16 ), "Only used in --slow sweep.  Arg is the number of FFTs that get averaged together to produce the output. The value of (average*fft) must be an integer multiple of 512." )
       ;
-      po::options_description od_modes( "Sweep Modes" );
+      po::options_description od_modes( "Operational Modes" );
       od_modes.add_options()
       ( "extract-caldata", po::value<std::string>(&calout)->implicit_value(""), "Gather the calibration data from the Signal Hound and save it to the file pointed to by <arg>" )
       ( "info", po::value<int>(&mode)->implicit_value(INFODISPLAY), "Calculated parameters and dumps a list of what would be done.  This is helpful if you want to see the Resolution Bandwidth (RBW) or other RF parameters.  Due to limitations in the SignalHound API, some parameters will not be correct until the unit is initialized" )
-      ( "fast", po::value<int>(&mode)->implicit_value(FAST_SWEEP), "Use fast sleep mode. Fast sweep captures a single sweep of data. The start_freq, and stop_freq are rounded to the nearest 200KHz. If fft=1, only the raw power is sampled, and samples are spaced 200KHz apart. If fft > 1, samples are spaced 200KHz.  RBW is set solely on FFT size as the decimation is equal to 1 (fixed internally)" )
-      ( "slow", po::value<int>(&mode)->implicit_value(SLOW_SWEEP), "Use slow sweep mode. Slow sweep is which is more thorough and not bandwidth limited.  Data points will be spaced 486.111KHz/(fft*decimation).  Each measurement cycle will take: (40 + (fft*average*decimation)/486)*(stop_freq - start_freq)/201000 milliseconds, rounded up. Furthermore, fft*average must be a integer multiple of 512." )
+      ( "fast", po::value<int>(&mode)->implicit_value(FAST_SWEEP), "Run a fast sleep. Fast sweep captures a single sweep of data. The start_freq, and stop_freq are rounded to the nearest 200KHz. If fft=1, only the raw power is sampled, and samples are spaced 200KHz apart. If fft > 1, samples are spaced 200KHz.  RBW is set solely on FFT size as the decimation is equal to 1 (fixed internally)" )
+      ( "slow", po::value<int>(&mode)->implicit_value(SLOW_SWEEP), "Run a slow sweep. Slow sweep is which is more thorough and not bandwidth limited.  Data points will be spaced 486.111KHz/(fft*decimation).  Each measurement cycle will take: (40 + (fft*average*decimation)/486)*(stop_freq - start_freq)/201000 milliseconds, rounded up. Furthermore, fft*average must be a integer multiple of 512." )
       ( "delay", po::value<int>(&pause_between_traces)->default_value( 0 ), "In order to limit on the rediculously large file sizes, how long should this program pause between sweeps in milliseconds" )
-      ( "repetitions", po::value<int>(&repetitions)->default_value( 5 ), "How many sweeps should be done before exiting.  Default of -1 means sweep forever (well... at least until Ctrl-C hit or power cycled)" )
+      ( "sweeps,n", po::value<int>(&repetitions)->default_value( -1 ), "How many sweeps should be done before exiting.  Default of -1 means sweep forever (well... at least until Ctrl-C hit or power cycled)" )
       ;
       po::options_description all( "" );
       all.add( od_general ).add( od_rfopts ).add( od_modes ).add( od_output );
@@ -160,7 +172,7 @@ namespace SignalHound {
         el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, logfname);
         el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "true");
       }
-      if ( vm.count("nostdout") )  { std::cout << "Shutting it up " << std::endl; tostdout = false;}
+      if ( vm.count("nostdout") )  tostdout = false;
       //Logger is already set to el::Level::Error, they want more...
       log_level = el::Level::Error;
       if ( vm.count("verbose") ) log_level = el::Level::Trace;

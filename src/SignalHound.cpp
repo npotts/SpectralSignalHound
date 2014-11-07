@@ -78,9 +78,9 @@ namespace SignalHound {
     el::Loggers::addFlag(el::LoggingFlag::DisableApplicationAbortOnFatalLog);
     el::Loggers::addFlag(el::LoggingFlag::LogDetailedCrashReason);
     el::Loggers::addFlag(el::LoggingFlag::ColoredTerminalOutput);
-    //el::Loggers::addFlag(el::LoggingFlag::CreateLoggerAutomatically);
+    el::Loggers::addFlag(el::LoggingFlag::CreateLoggerAutomatically);
     el::Loggers::addFlag(el::LoggingFlag::AutoSpacing); // LOG(DEBUG) << "a"<<"b"<<"c" prints as "a b c"
-    el::Loggers::addFlag(el::LoggingFlag::ImmediateFlush);
+    //el::Loggers::addFlag(el::LoggingFlag::ImmediateFlush);
     //because the default timestamp is all wacky, we need to recreate a few logging format
     // INFO and WARNING are set to default by the global call below
     el::Loggers::reconfigureAllLoggers(                   el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level %msg"));
@@ -134,10 +134,10 @@ namespace SignalHound {
         opts.docal = true;
       }
     }
-    CLOG_IF( sh_errno != 0, ERROR, "SignalHound") << "Unable to Initialize Signal Hound";
+    CLOG_IF( (sh_errno != 0), ERROR, "SignalHound") << "Unable to Initialize Signal Hound";
     if ( sh_errno != 0 ) return sh_errno;
 
-    CLOG_IF( opts.preset, DEBUG, "SignalHound") << "Presetting Unit to Known State";
+    CLOG_IF( (opts.preset), DEBUG, "SignalHound") << "Presetting Unit to Known State";
     if ( opts.preset ) { //Preset the unit
       if ( ( sh_errno = SHAPI_CyclePort( sighound_struct ) ) != 0 ) {
         CLOG_IF( sh_errno != 0, ERROR, "SignalHound") << "Unable to Preset the Signal Hound";
@@ -164,7 +164,7 @@ namespace SignalHound {
       return sh_errno;
     }
 
-    if ( opts.preamp )
+    if ( opts.preamp && SHAPI_IsPreampAvailable(sighound_struct))
       SHAPI_SetPreamp( sighound_struct, 1 );
     else
       SHAPI_SetPreamp( sighound_struct, 0 );
@@ -172,13 +172,26 @@ namespace SignalHound {
     //rudimentary parameter validation
     if ( ( opts.ext_trigger != SHAPI_EXTERNALTRIGGER ) && ( opts.ext_trigger != SHAPI_SYNCOUT ) && ( opts.ext_trigger != SHAPI_TRIGGERNORMAL ) )
       opts.ext_trigger = SHAPI_TRIGGERNORMAL;
+
     SHAPI_SyncTriggerMode( sighound_struct, opts.ext_trigger );
+
     return sh_errno;
   }
   double SignalHound::temperature() {
     if ( !sh_errno )
       return ( double ) SHAPI_GetTemperature( sighound_struct );
     return ( -9999.9999 );
+  }
+  bool SignalHound::saveCalData( std::string fname_out) {
+    if ( sh_errno ) return false;
+    std::ofstream cal(fname_out.c_str(), std::ios::binary);
+    if (cal.is_open()) {
+      for(unsigned int i=0; i< sizeof(opts.caldata); i++) {
+        cal << opts.caldata[i];
+      }
+    }
+    cal.close();
+    return true;
   }
   double SignalHound::sweepTime() {
     return ( rfopts.slowSweep ? \
@@ -212,7 +225,7 @@ namespace SignalHound {
       ok &= ( ( ropts.fftsize > 15 ) && ( ropts.fftsize <= 65536 ) && ( ( ropts.fftsize & ( ropts.fftsize - 1 ) ) == 0 ) );
       if ( !ok ) {errmsg = "FFT Size must be in the range of [16, 65536] and a power of 2."; CLOG(WARNING, "SignalHound") << errmsg; return false;}
       ok &= ( ( ropts.average * ropts.fftsize ) % 512 == 0 );
-      if ( !ok ) {errmsg = "FFT Size * Average must be a multiple of 512"; CLOG(WARNING, "SignalHound") << errmsg;  return false;}
+      if ( !ok ) {errmsg = "FFT Size * Average must be a multiple of 512"; CLOG(WARNING, "SignalHound") << errmsg; return false;}
     } else {
       ok &= ( ropts.fftsize == 1 ) | ( ( ropts.fftsize > 2 ) && ( ropts.fftsize <= 256 ) && ( ( ropts.fftsize & ( ropts.fftsize - 1 ) ) == 0 ) );
       if ( !ok ) {errmsg = "FFT Size must be either 1 for raw sample, or in the range of [16, 256] and a power of 2."; CLOG(WARNING, "SignalHound") << errmsg; return false;}

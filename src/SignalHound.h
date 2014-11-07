@@ -184,7 +184,12 @@ namespace SignalHound {
       /** \brief get/set the internal rfOpts structure;*/
       struct rfOpts rfOpts(struct rfOpts *n = 0);
 
-      /** \brief Returns the number of samples in a sweep*/
+      /** \brief Save Cal Data to a file */
+      bool saveCalData( std::string );
+
+      /** \brief Returns the number of samples in a sweep.
+       * It is up to the caller to make sure that the SignalHound is configured
+       */
       int sweepCount( void );
 
       /** \brief Returns the time (in seconds) a single sweep will take.*/

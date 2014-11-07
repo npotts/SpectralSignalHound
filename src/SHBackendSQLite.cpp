@@ -107,7 +107,7 @@ namespace SignalHound {
     pStmt->BeginTransaction();
     pStmt->Sql("INSERT INTO [" + data_table + "] (rowid, timestamp, csv) VALUES (NULL, ?, ?)");
     for(unsigned int i=0; i < dbvalues.size(); i++)
-      data << dbvalues.at(i) << (i - 1 == dbvalues.size() ? "" : ",");
+      data << dbvalues.at(i) << ( (i + 1 == dbvalues.size()) ? "" : ",");
     CLOG(DEBUG, "SQLBackend") << "dbvalues.size()" << dbvalues.size();
     try {
       pStmt->BindString(1, currentTimeDate());

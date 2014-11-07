@@ -50,6 +50,7 @@
 #define _ELPP_STACKTRACE_ON_CRASH 1
 #define _ELPP_NO_DEFAULT_LOG_FILE 1
 #define _ELPP_STACKTRACE_ON_CRASH 1
+#define _ELPP_DEBUG_ERRORS 0
 #include "../ext/easyloggingpp/src/easylogging++.h"
 
 namespace SignalHound {

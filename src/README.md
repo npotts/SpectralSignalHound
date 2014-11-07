@@ -30,9 +30,46 @@ SHLAPI.h
 
 Header for the signalhound.  Taken directly from [here] (https://www.signalhound.com/sigdownloads/SA44B/linux_shapi_x86_64.zip) from [this page](https://www.signalhound.com/support/downloads/sa44b-sa124b-downloads).
 
+Timed Runs
+==========
+
+The documentation for the signal hound calls out that providing the cal data at
+the onset should help speed up initialization, which is hard to tell,  I ended up
+manually running instances for ~5 times with the following results.
+
+With Provided Cal data
+----------------------
+
+```
+ time ./sh-spectrum -v --start 400e6 --stop 406e6 --csv withcal.csv --db caltests.db -n 5 --log sh-spectrum.log --caldata cal.dat
+ ```
+
+- 6.55s user 4.20s system 22% cpu 47.377 total
+- 7.24s user 3.47s system 22% cpu 47.391 total
+- 6.65s user 4.05s system 22% cpu 47.378 total
+- 6.83s user 3.50s system 21% cpu 46.968 total
+- 7.18s user 3.61s system 22% cpu 47.082 total
+
+With out providing cal data
+---------------------------
+
+```
+time ./sh-spectrum -v --start 400e6 --stop 406e6 --csv withoutcal.csv --db nocaltests.db -n 5 --log sh-spectrum.log
+```
+  
+- 7.43s user 4.24s system 21% cpu 53.783 total
+- 7.69s user 3.98s system 21% cpu 54.121 total
+- 7.59s user 3.83s system 21% cpu 53.776 total
+- 7.17s user 4.00s system 20% cpu 53.919 total
+- 6.79s user 4.92s system 21% cpu 54.117 total
+
+Results
+-------
+
+Eyeballing the numbers it appears that shave off 6 seconds from the process, which may be worth it.
 
 TODO / Feature Creep:
----------------------
+=====================
 
 - ~~Logging~~
 	- ~~Turn on/off debugging logs on terminal~~
@@ -45,8 +82,6 @@ TODO / Feature Creep:
 	- ~~whole thing~~
 - ~~SQLite output~~
 	- ~~verify working~~
-- Add functionality to dump the cal data to a file
+- ~~Add functionality to dump the cal data to a file~~
 - Read a .ini config file to configure sweeps
 	- named sweeps with multiple settings in a config file
-- Plotting
-	- How to display data eloquently and usefully.

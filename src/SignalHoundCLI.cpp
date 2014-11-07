@@ -41,10 +41,16 @@ namespace SignalHound {
   }
   SignalHoundCLI::SignalHoundCLI(bool &ok, int argc, char *args[]): sh(NULL), verbosity(NORMAL), mode(SLOW_SWEEP), sqlite(NULL), csv(NULL) {
     logger = getSignalHoundLogger("SignalHoundCLI");
-    //getSignalHoundLogger("SignalHound"); //for whatever reason, initializing this in SignalHound::SignalHound does not work properly.  Do it here instead
+    getSignalHoundLogger("SignalHound"); //for whatever reason, initializing this in SignalHound::SignalHound does not work properly.  Do it here instead
     std::string errmsg;
     ok = parseArgs(argc, args);
     sh = new SignalHound(&sh_opts, &sh_rfopts);
+
+    ok &= sh->verfyRFConfig(errmsg, sh_rfopts);
+    CLOG_IF( (!ok), ERROR, "SignalHoundCLI") << "Passed configuration is not valid for sweep operations.";
+    CLOG_IF( (!ok), ERROR, "SignalHoundCLI") << errmsg;
+    if (!ok) exit(-1);
+    
     CLOG(DEBUG, "SignalHoundCLI") << "Initializing Signal Hound";
     int r = sh->initialize(); //Try to initialize
     if (mode == INFODISPLAY) { //who cares if we init it.  Show parameters in either case
@@ -67,10 +73,6 @@ namespace SignalHound {
       }
       exit( ok ? 0 : -1);
     }
-    ok &= sh->verfyRFConfig(errmsg, sh_rfopts);
-    CLOG_IF( (!ok), ERROR, "SignalHoundCLI") << "Passed configuration is not valid for sweep operations.";
-    CLOG_IF( (!ok), ERROR, "SignalHoundCLI") << errmsg;
-    if (!ok) exit(-1);
   }
 
   bool SignalHoundCLI::runSweeps() {

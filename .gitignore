@@ -34,3 +34,4 @@ sh-spectrum
 *.dat
 *.db
 *.sqlite
+*.csv

@@ -218,7 +218,7 @@ namespace SignalHound {
     bool ok = true;
     ok &= ( ropts.stop_freq > ropts.start_freq );
     if ( !ok ) {errmsg = "Stop Frequency must be higher than the Start Frequency"; CLOG(WARNING, "SignalHound") << errmsg; return false;}
-    ok &= ( (ropts.stop_freq < MAX_FREQ) && (ropts.start_freq > MIN_FREQ) );
+    ok &= ( (ropts.stop_freq <= MAX_FREQ) && (ropts.start_freq >= MIN_FREQ) );
     if ( !ok ) {errmsg = "Allowable frequency range is from 1 Hz to 4.4GHz."; CLOG(WARNING, "SignalHound") << errmsg; return false;}
     if ( ropts.slowSweep ) {
       //check FFT length

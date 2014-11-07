@@ -55,7 +55,7 @@ namespace SignalHound {
       unsigned int fcount = (int) metadata["sweep_count"];
       for(unsigned int i=0; i < fcount; i++) {
         csv << "," << (int) (freq + fstep*i);
-      } csv << std::endl;
+      } csv << std::endl << std::flush;
       CLOG(INFO, "CSVBackend") << "CSV headers written";
       return true;
     } catch (std::exception &e) {
@@ -69,7 +69,7 @@ namespace SignalHound {
       csv << currentTimeDate();
       for(unsigned int i=0; i < dbvalues.size(); i++)
         csv << "," << dbvalues.at(i);
-      csv << std::endl;
+      csv << std::endl << std::flush;
       return true;
     } catch (std::exception &e) {
       CLOG(FATAL, "CSVBackend") << "Error writing data: " << e.what();

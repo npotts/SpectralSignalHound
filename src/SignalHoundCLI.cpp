@@ -124,7 +124,7 @@ namespace SignalHound {
       ( "nostdout", "Nothing will be printed to stdout. Return value will indicate fatal errors. If you want to see errors, you can still use --log below." )
       ( "log,l", po::value<std::string>(&logfname)->default_value( "" ), "Write program log to file specified by arg. Defaults to stdout/stderr." )
       ( "verbose,v", "Setting this will cause a gratuitous amount of babble to be displayed.  This overrides --quiet." )
-      ( "caldata", po::value<std::string>()->default_value( "" ) , "Use this file as the calibration data for the signal hound.  This should radically spead up initialization.  Use 'sh-extract-cal-data' to extract this calibration data and reference it here." )
+      ( "caldata", po::value<std::string>()->default_value( "" ) , "Use this file as the calibration data for the signal hound.  This should shave off ~6 seconds from initialization.  Use '--extract-caldata' to extract this calibration data and later reference it here." )
       ( "attenuation", po::value<double>(&sh_opts.attenuation)->default_value( 10.0 ), "Set the internal input attenuation.  Must be one of the following values: 0.0, 5.0, 10.0 (default), or 15.0.  Any other value will revert to the default." )
       ( "low-mixer", "If flag is set, this will change the front end down converter to work with frequencies below 150MHz. If your frequency range will traverse above 150MHz, do not set this flag." )
       ( "sensitivity", po::value<int>(&sh_opts.sensitivity)->default_value( 0 ), "Set the sensitivity of the Signal Hound.  0 (default) is lowest sensitivity, 2 is the highest." )

@@ -30,12 +30,12 @@ CC=gcc
 CXX=g++
 INCLUDE_PATHS = -I. -I./src/ -I/opt/lib64 -Iext/kompex/include -Iext/easyloggingpp/src
 STATIC_LIBS=-lpthread -lboost_program_options -lftd2xx -ldl -lrt 
-LDFLAGS=-L. -L./libs libs/sh_linux_api.a ext/kompex/lib/libkompex-sqlite-wrapper.a
+LDFLAGS=-L. -L./libs/amd64 libs/amd64/libHOUND.a ext/kompex/lib/libkompex-sqlite-wrapper.a
 CXXFLAGS=-g -g3 -Wall -O2 -std=c++11
 
-SOURCES=src/SHBackend.cpp src/SHBackendCSV.cpp src/SHBackendSQLite.cpp src/SignalHoundCLI.cpp src/SignalHound.cpp src/sh-spectrum.cpp
+SOURCES=src/SignalHoundCLI.cpp src/SHBackend.cpp src/SHBackendCSV.cpp src/SHBackendSQLite.cpp src/sh-spectrum.cpp src/SignalHound.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
-EXECUTABLE=sh-spectrum
+EXECUTABLE=sh-spectrum2
 
 #CAL_SOURCES=src/CUSBSA.cpp src/extract-cal-data.cpp
 #CAL_OBJECTS=$(CAL_SOURCES:.cpp=.o)

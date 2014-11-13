@@ -31,11 +31,11 @@
 
 
 #pragma once
-
 #include "SignalHound.h"
 
 using namespace std;
 namespace SignalHound {
+
   class SHBackend {
     public:
       SHBackend(bool &ok, std::string);

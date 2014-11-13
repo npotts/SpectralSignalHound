@@ -36,9 +36,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
-
 #include "SHBackend.h"
-#include "SignalHound.h"
 
 
 using namespace std;

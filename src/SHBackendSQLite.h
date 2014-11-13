@@ -35,9 +35,7 @@
 
 #include <string>
 #include <vector>
-
 #include "SHBackend.h"
-#include "SignalHound.h"
 
 #include "../ext/kompex/include/KompexSQLiteBlob.h"
 #include "../ext/kompex/include/KompexSQLiteStatement.h"

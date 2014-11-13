@@ -37,8 +37,6 @@
 using namespace SignalHound;
 
 int main( int args, char *argv[] ) {
-  el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "false");
-  el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, "true");
   bool ok;
   SignalHoundCLI shcli(ok, args, argv);
   shcli.runSweeps();

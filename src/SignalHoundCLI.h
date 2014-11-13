@@ -36,13 +36,12 @@
 #include "SignalHound.h"
 #include "SHBackend.h"
 #include "SHBackendSQLite.h"
- #include "SHBackendCSV.h"
+#include "SHBackendCSV.h"
 #include <boost/program_options.hpp>
 
 using namespace std;
 namespace SignalHound {
   enum shverbosity {SILENT, NORMAL, GRATUITOUS};
-  enum SignalHoundCLI_mode {SLOW_SWEEP, FAST_SWEEP, INFODISPLAY, CALDATA};
   class SignalHoundCLI {
     public:
       SignalHoundCLI(bool &, /**< [out] true if cfg worked, false otherwise*/
@@ -51,17 +50,20 @@ namespace SignalHound {
       ~SignalHoundCLI();
       bool runSweeps();
     private:
+      /** /brief Make sure all the variables the user can randomly input are within a valid range. */
+      void forceRange();
       bool parseArgs(int, char *[]);
       bool runSweep();
 
-      SignalHound *sh;
-      struct configOpts sh_opts;
-      struct rfOpts sh_rfopts;
       std::string logfname, dbfname, csvfname, calout;
+      bool preamp;
+      bool extref;
       int verbosity;
       int pause_between_traces;
       int repetitions;
       int mode;
+      CMySignalHound sighound;
+
       el::Logger* logger;
       SHBackendSQLite *sqlite;
       SHBackendCSV *csv;

@@ -27,7 +27,11 @@
 *.out
 *.app
 sh-spectrum
+sh-spectrum2
 
+#cal files
+D*.bin
+*.tep
 
 # data products
 *.log

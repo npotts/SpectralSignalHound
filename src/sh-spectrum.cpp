@@ -39,5 +39,6 @@ using namespace SignalHound;
 int main( int args, char *argv[] ) {
   bool ok;
   SignalHoundCLI shcli(ok, args, argv);
-  shcli.runSweeps();
+  if (ok)
+  	shcli.runSweeps();
 }

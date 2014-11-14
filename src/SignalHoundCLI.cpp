@@ -237,7 +237,7 @@ namespace SignalHound {
       if (vm.count("no-img-reject"))
         sighound.m_settings.m_suppressImage = true;
       
-      sighound.m_settings.m_sweepMode = HOUND_SWEEP_MODE_FAST_SWEEP;
+      sighound.m_settings.m_sweepMode = -1;
       if (vm.count("slow")) sighound.m_settings.m_sweepMode=HOUND_SWEEP_MODE_SLOW_SWEEP;
       if (vm.count("fast")) sighound.m_settings.m_sweepMode=HOUND_SWEEP_MODE_FAST_SWEEP;
       if (vm.count("rbw5MHz")) sighound.m_settings.m_sweepMode=HOUND_SWEEP_MODE_RBW_5MHz;
@@ -281,10 +281,12 @@ namespace SignalHound {
       CLOG(DEBUG, "SignalHoundCLI") << "m_ZSMode " << sighound.m_settings.m_ZSMode;
       CLOG(DEBUG, "SignalHoundCLI") << "m_ZSSweepTime" << sighound.m_settings.m_ZSSweepTime;
 
-      bool ok = true;
-      ok &= (dbfname != "") | (csvfname != "");
-      if (!ok) {
+      if ((dbfname != "") && (csvfname != "")) {
         std::cerr << "Please select a backend storage device.  Missing either --db or --csv" << std::endl;
+        return false;
+      }
+      if (sighound.m_settings.m_sweepMode == -1) {
+        std::cerr << "Please select a sweep method. Missing either --fast, --slow, --rbw5MHz, --zspan, or --phase-noise." << std::endl;
         return false;
       }
 
@@ -323,7 +325,6 @@ namespace SignalHound {
 
   bool SignalHoundCLI::runSweep() {
     CLOG(DEBUG, "SignalHoundCLI") << "Starting a Sweep";
-    std::cout << "\r" << "Sweeps Run# " << reps++ << std::flush;
     sighound.SetupForSweep();
     double temp = sighound.ReadTemperature();
     int rtn = sighound.DoSweep();
@@ -331,9 +332,16 @@ namespace SignalHound {
     if (rtn == 0) {
       std::vector<double> vals;
       vals.push_back(temp);
+      int max_index = 0;
+      double max = mW2dBm(sighound.pDataMax[0]);
       for (int i=1; i < sighound.m_traceSize; i++) {
         vals.push_back(mW2dBm(sighound.pDataMax[i]));
+        if (mW2dBm(sighound.pDataMax[i]) > max) {
+          max = mW2dBm(sighound.pDataMax[i]);
+          max_index=i;
+        }
       }
+      std::cout << "\r" << "Sweeps Run# " << reps++ << " max Freq:" << sighound.GetFrequencyFromIdx(max_index) << " @ " << max << "dBm" << std::flush;
       CLOG(DEBUG, "SignalHoundCLI") << " Vals Size:" << vals.size();
 
       if (sqlite) {

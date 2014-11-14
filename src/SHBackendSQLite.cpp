@@ -36,7 +36,6 @@ namespace SignalHound {
     el::Loggers::unregisterLogger("SQLBackend");
   }
   SHBackendSQLite::SHBackendSQLite(bool &ok, std::string dbfilename): SHBackend(ok, dbfilename), metadata_insert_proto(METADATA_INSERT) {
-    std::cout << __FILE__ << ":" << __LINE__ << std::endl;
     logger = getSignalHoundLogger("SQLBackend");
     pDB = NULL;
     pStmt = NULL;

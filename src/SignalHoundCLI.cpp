@@ -42,6 +42,11 @@ namespace SignalHound {
     logger = getSignalHoundLogger("SignalHoundCLI");
     ok = parseArgs(argc, args);
 
+    if (!ok) {
+      CLOG(FATAL, "SignalHoundCLI") << "Something is wrong with the configuration.";
+      return;
+    }
+
     if ( dbfname != "" ) {
       //user specified some database filename
       CLOG(DEBUG, "SignalHoundCLI") << "Initializing Database: " << dbfname;
@@ -157,10 +162,10 @@ namespace SignalHound {
       od_rfopts.add_options()
       ( "preamp", "If flag is set, will attempt to activate the built in RF preamplifier.  Only available on a Signal Hound SA44B." )
       ( "extref", "If flag is set, the Signal Hound will attempt to use a 10MHz external reference.  Input power to the Signal Hound must be greater than 0dBm in order for this to be used." )
-      ( "center", po::value<double>(&center)->default_value( 403e6 ), "Set the Center Frequency." )
-      ( "span", po::value<double>(&span)->default_value( 6e6 ), "Set the Span" )
-      ( "start", po::value<double>(&start)->default_value( -1 ), "Set the starting sweep frequency. If this and --stop are both not the defaults, these values will be used for the start and stop frequencies." )
-      ( "stop", po::value<double>(&stop)->default_value( -1 ), "Set the stop sweep frequency. If this and --start are both not the defaults, these values will be used for the start and stop frequencies." )
+      ( "center", po::value<double>(&center)->default_value( 403e6 ), "Set the center frequency in Hz.  Acceptable values are similar to 4e3, 4000, 4000.0 which all resolve to 4kHz." )
+      ( "span", po::value<double>(&span)->default_value( 6e6 ), "Set the span in Hz.  This value is ignored in --zspan and --phase-noise modes." )
+      ( "start", po::value<double>(&start)->default_value( -1 ), "Set the starting sweep frequency in Hz. If this and --stop are both not the defaults, these values will be used for the start and stop frequencies. This value is completely ignored in --zspan and --phase-noise modes, which rely on --center only." )
+      ( "stop", po::value<double>(&stop)->default_value( -1 ), "Set the stop sweep frequency in Hz. If this and --start are both not the defaults, these values will be used for the start and stop frequencies. Simlar to --start, this value is completely ignored in --zspan and --phase-noise modes and strictly relies on --center only." )
       ( "reflevel", po::value<double>(&sighound.m_settings.m_refLevel)->default_value( -10.0 ), "Set the reference level in dBm.  Valid values are between +10.0 and -150.0")
       ( "attenuation", po::value<int>(&sighound.m_settings.m_attenIndex)->default_value( 3 ), "Set the input attenuation.\n0 = 0dB\n1 = 5dB\n2 = 10dB\n3 = 15dB")
       ( "rbw", po::value<int>(&sighound.m_settings.m_RBWSetpoint)->default_value( -1 ), "Attempt to set the resolution bandwidth (RBW).  The actual RBW will be altered to reflect what it physically possible. Default of -1 will automatically select a RBW. Allowed values are -1, and values between 2 and 24 (inclusive).\n2 = 5 MHz\n3 = 250 kHz\n4 = 100 kHz\n5 = 50 kHz\n6 = 25 kHz\n7 = 12.5 kHz\n8 = 6.4 kHz\n9 = 3.2 kHz\n10 = 1.6 kHz\n11 = 800 Hz\n12 = 400 Hz\n13 = 200 Hz\n14 = 100 Hz\n15 = 50 Hz\n16 = 25 Hz\n17 = 12.5 Hz\n18 = 6.4 Hz\n19 = 3.2 Hz\n20 = 1.6 Hz\n21 = .8 Hz\n22 = .4 Hz\n23 = .2 Hz\n24 = .1 Hz")
@@ -177,9 +182,9 @@ namespace SignalHound {
       ( "slow", "Runs a slow sweep")
       ( "fast", "Runs a fast sweep")
       ( "rbw5MHz", "Sweep with a fixed RBW of 5MHz" )
-      ( "zero-span", "Run a Zero Span Sweep" )
+      ( "zspan", "Run a Zero Span Sweep" )
       ( "phase-noise", "Run phase-noise measurement" )
-      ( "tracking-gen", "Run a Tracking Generator sweep - Completely untested." )
+      ( "tracking-gen", "Run a Tracking Generator sweep - Completely untested as I do not have a tracking generator signal hound." )
       ;
       po::options_description od_zerospan( "Zero Span Options" );
       od_zerospan.add_options()
@@ -214,17 +219,6 @@ namespace SignalHound {
       if ( vm.count("extref") )
         extref = true;
 
-      if ( (start != -1.0) && (stop != -1.0) && (stop > start) && (start >= 1.0) && (stop <= MAX_FREQ)) {
-        span = stop - start;
-        center = start + span/2;
-      }
-      start = center - span/2;
-      stop = center + span/2;
-      sighound.m_settings.m_startFreq = start;
-      sighound.m_settings.m_stopFreq = stop;
-      sighound.m_settings.m_centerFreq = center;
-      sighound.m_settings.m_spanFreq = span;
-
       ifbw = ((sighound.m_settings.m_sweepMode != HOUND_SWEEP_MODE_ZERO_SPAN) | (ifbw < 1) | (ifbw > 16) | ((ifbw & (~ifbw + 1) ) == ifbw) ) ? 0 : ifbw;
       switch(ifbw) {
         case 1:  sighound.m_settings.m_RBWSetpoint = HOUND_IFBW_240kHz; sighound.m_settings.m_VBWSetpoint = HOUND_IFBW_240kHz; break;
@@ -247,9 +241,17 @@ namespace SignalHound {
       if (vm.count("slow")) sighound.m_settings.m_sweepMode=HOUND_SWEEP_MODE_SLOW_SWEEP;
       if (vm.count("fast")) sighound.m_settings.m_sweepMode=HOUND_SWEEP_MODE_FAST_SWEEP;
       if (vm.count("rbw5MHz")) sighound.m_settings.m_sweepMode=HOUND_SWEEP_MODE_RBW_5MHz;
-      if (vm.count("zero-span")) sighound.m_settings.m_sweepMode=HOUND_SWEEP_MODE_ZERO_SPAN;
+      if (vm.count("zspan")) sighound.m_settings.m_sweepMode=HOUND_SWEEP_MODE_ZERO_SPAN;
       if (vm.count("phase-noise")) sighound.m_settings.m_sweepMode=HOUND_SWEEP_MODE_PHASE_NOISE;
       if (vm.count("tracking-gen")) sighound.m_settings.m_sweepMode=HOUND_SWEEP_MODE_TRACK_GEN;
+
+      //since we know the mode, we can accurately apply center and 
+      if ((sighound.m_settings.m_sweepMode == HOUND_SWEEP_MODE_ZERO_SPAN) | (sighound.m_settings.m_sweepMode == HOUND_SWEEP_MODE_PHASE_NOISE))
+        span = 0.0; //only care about center freq, zero out span
+      if ( (start > 1.0) && (stop > 1.0) && (stop > start) && (stop <= MAX_FREQ))
+        sighound.SetStartAndStop(start, stop); //user specified start and stop values
+      else
+        sighound.SetCenterAndSpan(center, span); //default to using center and span values
 
       switch(sighound.m_settings.m_ZSMode) {
         case 1: sighound.m_settings.m_ZSMode = HOUND_ZS_MODE_AMPLITUDE; break;
@@ -259,9 +261,7 @@ namespace SignalHound {
       }
 
       forceRange();
-      //std::cout << __FILE__ << ":" << __LINE__ << std::endl;
       if (logfname != "" ) el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, logfname);
-      //std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 
       CLOG(DEBUG, "SignalHoundCLI") << "Freq Start " << sighound.m_settings.m_startFreq;
       CLOG(DEBUG, "SignalHoundCLI") << "Freq Stop " << sighound.m_settings.m_stopFreq;
@@ -280,6 +280,13 @@ namespace SignalHound {
       CLOG(DEBUG, "SignalHoundCLI") << "m_sweepMode " << sighound.m_settings.m_sweepMode;
       CLOG(DEBUG, "SignalHoundCLI") << "m_ZSMode " << sighound.m_settings.m_ZSMode;
       CLOG(DEBUG, "SignalHoundCLI") << "m_ZSSweepTime" << sighound.m_settings.m_ZSSweepTime;
+
+      bool ok = true;
+      ok &= (dbfname != "") | (csvfname != "");
+      if (!ok) {
+        std::cerr << "Please select a backend storage device.  Missing either --db or --csv" << std::endl;
+        return false;
+      }
 
       try {
         sighound.m_settings.CalcSweepParams();

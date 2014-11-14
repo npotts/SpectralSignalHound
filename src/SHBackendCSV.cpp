@@ -49,7 +49,7 @@ namespace SignalHound {
     /**< A new sweep is about to take place - Write out the headers.*/
     try {
       CLOG(DEBUG, "CSVBackend") << "Initializing new CSV file";
-      csv << "Timestamp, Temperature";
+      csv << "timestamp,temperature";
       for(int i=0; i<sighound.m_traceSize; i++)
         csv << "," << (int) sighound.GetFrequencyFromIdx(i);
       csv << std::endl;

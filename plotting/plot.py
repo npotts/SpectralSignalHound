@@ -66,6 +66,7 @@ def plotSpec(dat_filename):
     #data loaded
     np_time_grid = np.array([dates.date2num(datetime_from_string(t)) for t in data["timestamp"]])
     headers.remove("timestamp")
+    headers.remove("temperature")
     headers.sort()
     plot_data=[]
     for col in headers:
@@ -104,4 +105,4 @@ def plotSpec(dat_filename):
     #    frameon=None)
     savefig("out.png", format="png", dpi=200, transparent=True, bbox_inches='tight')
 
-plotSpec("metband.csv")
+plotSpec("403-test-trace.csv")

@@ -52,6 +52,7 @@ namespace SignalHound {
       csv << "Timestamp, Temperature";
       for(int i=0; i<sighound.m_traceSize; i++)
         csv << "," << (int) sighound.GetFrequencyFromIdx(i);
+      csv << std::endl;
       CLOG(INFO, "CSVBackend") << "CSV headers written: total of" << sighound.m_traceSize << "points per trace";
       return true;
     } catch (std::exception &e) {

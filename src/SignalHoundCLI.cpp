@@ -334,7 +334,7 @@ namespace SignalHound {
       vals.push_back(temp);
       int max_index = 0;
       double max = mW2dBm(sighound.pDataMax[0]);
-      for (int i=1; i < sighound.m_traceSize; i++) {
+      for (int i=0; i < sighound.m_traceSize; i++) {
         vals.push_back(mW2dBm(sighound.pDataMax[i]));
         if (mW2dBm(sighound.pDataMax[i]) > max) {
           max = mW2dBm(sighound.pDataMax[i]);

@@ -51,7 +51,7 @@ namespace SignalHound {
       CLOG(DEBUG, "CSVBackend") << "Initializing new CSV file";
       csv << "Timestamp, Temperature";
       for(int i=0; i<sighound.m_traceSize; i++)
-        csv << "," << sighound.GetFrequencyFromIdx(i);
+        csv << "," << (int) sighound.GetFrequencyFromIdx(i);
       CLOG(INFO, "CSVBackend") << "CSV headers written: total of" << sighound.m_traceSize << "points per trace";
       return true;
     } catch (std::exception &e) {

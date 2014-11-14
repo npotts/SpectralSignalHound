@@ -150,7 +150,7 @@ namespace SignalHound {
     std::stringstream create;
     create << "CREATE TABLE [" + data_table + "] (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, temperature DOUBLE NOT NULL";
     for(int i=1; i<sighound.m_traceSize; i++) {
-      create << ", [f" << (int) sighound.GetFrequencyFromIdx(i) << "] DOUBLE";
+      create << ", [" << (int) sighound.GetFrequencyFromIdx(i) << "] DOUBLE";
     }
     create << ")";
     try { //create new Table.  At this point, we should have the number of frequency

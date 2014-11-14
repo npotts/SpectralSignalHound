@@ -297,6 +297,7 @@ namespace SignalHound {
   }
   bool SignalHoundCLI::runSweeps() {
     bool rtn = true;
+    reps = 0;
     sighound.SetupForSweep();
     if (sqlite) sqlite->newSweep(sighound);
     if (csv) csv->newSweep(sighound);
@@ -314,7 +315,8 @@ namespace SignalHound {
   }
 
   bool SignalHoundCLI::runSweep() {
-    CLOG(INFO, "SignalHoundCLI") << "Starting a Sweep";
+    CLOG(DEBUG, "SignalHoundCLI") << "Starting a Sweep";
+    std::cout << "\r" << "Sweeps Run# " << reps++ << std::flush;
     sighound.SetupForSweep();
     double temp = sighound.ReadTemperature();
     int rtn = sighound.DoSweep();
@@ -336,7 +338,8 @@ namespace SignalHound {
         CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Data not added to CSV!";
       }
     }
-    usleep(pause_between_traces); //sleep between traces
+    std::this_thread::sleep_for(std::chrono::milliseconds(pause_between_traces));
+    //usleep(pause_between_traces); //sleep between traces
     return (rtn == 0);
   }
 };

@@ -33,6 +33,8 @@
 #pragma once
 #include <unistd.h>
 #include <fstream>
+#include <thread>
+#include <chrono>
 #include "SignalHound.h"
 #include "SHBackend.h"
 #include "SHBackendSQLite.h"
@@ -63,6 +65,7 @@ namespace SignalHound {
       int repetitions;
       int mode;
       CMySignalHound sighound;
+      unsigned long long int reps;
 
       el::Logger* logger;
       SHBackendSQLite *sqlite;

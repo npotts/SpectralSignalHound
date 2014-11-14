@@ -55,7 +55,7 @@ namespace SignalHound {
       bool parseArgs(int, char *[]);
       bool runSweep();
 
-      std::string logfname, dbfname, csvfname, calout;
+      std::string dbfname, csvfname, calout;
       bool preamp;
       bool extref;
       int verbosity;

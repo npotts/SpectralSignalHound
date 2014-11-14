@@ -61,16 +61,16 @@ namespace SignalHound {
     return rtn;
   }
 
+  std::string logfname =""; //Initialize logging file to nothing.
   bool tostdout = true; /// Initialize logger to default to stdout
   el::Level log_level = el::Level::Debug; ///Error messages should be Fatal and below.
 
   el::Logger* getSignalHoundLogger(std::string label) {
-    el::Logger* logger = NULL;
+    el::Logger* logger = nullptr;
     if (label != "") {
-      logger = el::Loggers::getLogger(label);
-      if (logger == NULL) {
+      logger = el::Loggers::getLogger(label, true);
+      if (logger == nullptr) {
         std::cout << "Logger " << label << " already exists" << std::endl;
-        return NULL;
       }
     }
     //setup logging
@@ -81,9 +81,10 @@ namespace SignalHound {
     el::Loggers::addFlag(el::LoggingFlag::ColoredTerminalOutput);
     el::Loggers::addFlag(el::LoggingFlag::CreateLoggerAutomatically);
     el::Loggers::addFlag(el::LoggingFlag::AutoSpacing); // LOG(DEBUG) << "a"<<"b"<<"c" prints as "a b c"
-    //el::Loggers::addFlag(el::LoggingFlag::ImmediateFlush);
+    el::Loggers::addFlag(el::LoggingFlag::ImmediateFlush);
     //because the default timestamp is all wacky, we need to recreate a few logging format
     // INFO and WARNING are set to default by the global call below
+    el::Loggers::setLoggingLevel(log_level);
     el::Loggers::reconfigureAllLoggers(                   el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level %msg"));
     el::Loggers::reconfigureAllLoggers(el::Level::Error,  el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level [%loc] %msg"));
     el::Loggers::reconfigureAllLoggers(el::Level::Fatal,  el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level [%loc] %msg"));
@@ -91,7 +92,12 @@ namespace SignalHound {
     el::Loggers::reconfigureAllLoggers(el::Level::Trace,  el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level [%func] [%loc] %msg"));
     el::Loggers::reconfigureAllLoggers(el::Level::Verbose,el::ConfigurationType::Format, std::string("%datetime{%Y-%M-%d %H:%m:%s.%g} [%logger] %level-%vlevel [%logger] %msg"));
     el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, tostdout ? "true": "false");
-    el::Loggers::setLoggingLevel(log_level);
+    if ( logfname == "" ) {
+      el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "false");
+    } else {
+      el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "true");
+      el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, logfname);
+    }
     return logger;
   }
   

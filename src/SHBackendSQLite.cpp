@@ -35,21 +35,11 @@ namespace SignalHound {
   SHBackendSQLite::~SHBackendSQLite() {
     el::Loggers::unregisterLogger("SQLBackend");
   }
-  SHBackendSQLite::SHBackendSQLite(bool &ok, std::string dbfilename): SHBackend(ok, dbfilename) {
+  SHBackendSQLite::SHBackendSQLite(bool &ok, std::string dbfilename): SHBackend(ok, dbfilename), metadata_insert_proto(METADATA_INSERT) {
+    std::cout << __FILE__ << ":" << __LINE__ << std::endl;
     logger = getSignalHoundLogger("SQLBackend");
     pDB = NULL;
     pStmt = NULL;
-    //build up the metadata table prototype because we have a more complete
-    // information set than at compile time.
-    //I dont have a more efficient way to do this, but there is a better way to do this.
-    const char * metadata_params_[] = {"attenuation", "mixerband", "sensitivity", "decimation", "iflo_path", "adcclk_path", "deviceid", "docal", "preset", "ext_ref", "preamp", "ext_trigger", "slowsweep", "start_freq", "stop_freq", "span", "center_mean", "center_geometric", "fftsize", "image_rejection", "average", "valid", "temperature", "rbw", "sweep_count", "sweep_time", "sweep_step"};
-    metadata_params = vstr(metadata_params_, metadata_params_+sizeof(metadata_params_)/sizeof(const char *));
-    metadata_insert_proto = "INSERT INTO sweep_metadata (rowid, timestamp, data_table";
-    std::string tmp ("(NULL, ?, ?");
-    for(unsigned int i=0; i<metadata_params.size(); i++) {
-      metadata_insert_proto += ", " + std::string(metadata_params[i]);
-      tmp += ", ?";
-    } metadata_insert_proto += ") VALUES " + tmp + ")";
     CLOG(DEBUG, "SQLBackend") << "Meta Data Insert Prototype: " << metadata_insert_proto;
     ok = setOutput(dbfilename);
   }
@@ -58,11 +48,11 @@ namespace SignalHound {
       pDB->Close();
       delete(pDB);
     }
-    pDB = new Kompex::SQLiteDatabase(dbfilename, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, 0);
-    // create statement instance for sql queries/statements
-    pStmt = new Kompex::SQLiteStatement(pDB);
-    CLOG(DEBUG, "SQLBackend") << "Using SQLite Version: " << pDB->GetLibVersionNumber();
     try {
+      pDB = new Kompex::SQLiteDatabase(dbfilename, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, 0);
+      // create statement instance for sql queries/statements
+      pStmt = new Kompex::SQLiteStatement(pDB);
+      CLOG(DEBUG, "SQLBackend") << "Using SQLite Version: " << pDB->GetLibVersionNumber();
       pStmt->SqlStatement(METADATA_TABLE_CREATE); //create sweep_metadata table if it doesnt exist
       return true;
     } catch (Kompex::SQLiteException &e) {
@@ -71,19 +61,84 @@ namespace SignalHound {
     }
     return false;
   }
-  bool SHBackendSQLite::newSweep(map_str_dbl metadata) {
+  bool SHBackendSQLite::newSweep(CMySignalHound &sighound) {
     /*A new sweep is about to take place.  Add a new entry to the sweep_metadata table,
       create a new table for the sweep data, and adjust the internal data_table to point
       to the new table for further calls to SHBackendSQLite::addSweep() */
-    data_table = currentTimeDate(false, "sweep_%Y%m%dL%H%M%S");
-    CLOG(DEBUG, "SQLBackend") << " Creating a new database table with the name: " << data_table;
-    pStmt->Sql(metadata_insert_proto); //preload statement.  Now to bind
-    pStmt->BindString(1, currentTimeDate());
-    pStmt->BindString(2, data_table);
-    for(unsigned int i=0; i<metadata_params.size(); i++) {
-      pStmt->BindDouble(i+3, metadata[metadata_params.at(i)]);
+
+    //setup data table name.  We prefix "slow" for slow sweep, "fast" for fast, "rbw" for 5Mhz rbw,
+    //"zspan" for zero span, "pn" for phasenoise.  The others default to "unknown"
+    switch(sighound.m_settings.m_sweepMode) {
+      case HOUND_SWEEP_MODE_SLOW_SWEEP: data_table = "slow"; break;
+      case HOUND_SWEEP_MODE_FAST_SWEEP: data_table = "fast"; break;
+      case HOUND_SWEEP_MODE_RBW_5MHz: data_table = "rbw"; break;
+      case HOUND_SWEEP_MODE_ZERO_SPAN: data_table = "zspan"; break;
+      case HOUND_SWEEP_MODE_TRACK_GEN: data_table = "trackgen"; break;
+      case HOUND_SWEEP_MODE_PHASE_NOISE: data_table = "pn"; break;
+      default: data_table = "unknown"; break;
     }
+    data_table += currentTimeDate(false, "_%Y%m%dL%H%M%S");
+    CLOG(DEBUG, "SQLBackend") << " Binding() values to query to populate " << data_table;
     try {
+      pStmt->Sql(metadata_insert_proto); //preload statement.  Now to bind
+      int i=1;
+      //rowid, data_table, timestamp, m_startFreq
+      pStmt->BindString(i++, data_table);
+      pStmt->BindString(i++, currentTimeDate());
+      pStmt->BindDouble(i++, sighound.m_settings.m_startFreq);
+      pStmt->BindDouble(i++, sighound.m_settings.m_stopFreq);
+      pStmt->BindDouble(i++, sighound.m_settings.m_centerFreq);
+      pStmt->BindDouble(i++, sighound.m_settings.m_spanFreq);
+      pStmt->BindDouble(i++, sighound.m_settings.m_stepFreq);
+      pStmt->BindDouble(i++, sighound.m_settings.m_stepAmpl);
+      pStmt->BindDouble(i++, sighound.m_settings.m_refLevel);
+      pStmt->BindDouble(i++, sighound.m_settings.m_refLevelOffset);
+      pStmt->BindInt(i++, sighound.m_settings.m_refUnitsmV);
+      pStmt->BindDouble(i++, sighound.m_settings.m_logDbDiv);
+      pStmt->BindInt(i++, sighound.m_settings.m_attenIndex);
+      pStmt->BindBool(i++, sighound.m_settings.m_scaleLin);
+      pStmt->BindInt(i++, sighound.m_settings.m_AmplUnits);
+      pStmt->BindBool(i++, sighound.m_settings.m_signalTrackOn);
+      pStmt->BindInt(i++, sighound.m_settings.m_vidAvg);
+      pStmt->BindBool(i++, sighound.m_settings.m_TrigVideo);
+      pStmt->BindDouble(i++, sighound.m_settings.m_TrigPos);
+      pStmt->BindInt(i++, sighound.m_settings.m_CalOutSyncTrig);
+      pStmt->BindDouble(i++, sighound.m_settings.m_videoTriggerLevel);
+      pStmt->BindInt(i++, sighound.m_settings.m_ZSMode);
+      pStmt->BindInt(i++, sighound.m_settings.m_RBWSetpoint);
+      pStmt->BindInt(i++, sighound.m_settings.m_VBWSetpoint);
+      pStmt->BindInt(i++, sighound.m_settings.m_VDMMA);
+      pStmt->BindInt(i++, sighound.m_settings.m_VDMode);
+      pStmt->BindBool(i++, sighound.m_settings.m_UseExtRef);
+      pStmt->BindBool(i++, sighound.m_settings.m_RBWIsAuto);
+      pStmt->BindBool(i++, sighound.m_settings.m_VBWIsAuto);
+      pStmt->BindInt(i++, sighound.m_settings.m_SWPTMSetpoint);
+      pStmt->BindBool(i++, sighound.m_settings.m_maxHold);
+      pStmt->BindBool(i++, sighound.m_settings.m_suppressImage);
+      pStmt->BindInt(i++, sighound.m_settings.m_decimation);
+      pStmt->BindInt(i++, sighound.m_settings.m_MarkerSelected);
+      pStmt->BindInt(i++, sighound.m_settings.m_sweepMode);
+      pStmt->BindDouble(i++, sighound.m_settings.m_sweepTime);
+      pStmt->BindInt(i++, sighound.m_settings.m_Averaging);
+      pStmt->BindInt(i++, sighound.m_settings.m_DetectorPasses);
+      pStmt->BindInt(i++, sighound.m_settings.m_SubTraceCount);
+      pStmt->BindInt(i++, sighound.m_settings.m_FFTSize);
+      pStmt->BindInt(i++, sighound.m_settings.m_traceSize);
+      pStmt->BindDouble(i++, sighound.m_settings.m_ExtMixerOffset);
+      pStmt->BindDouble(i++, sighound.m_settings.m_ZSFreqPeak);
+      pStmt->BindDouble(i++, sighound.m_settings.m_ZSSweepTime);
+      pStmt->BindInt(i++, sighound.m_settings.m_SweepsToDo);
+      pStmt->BindInt(i++, sighound.m_settings.m_Overpowered);
+      pStmt->BindInt(i++, sighound.m_settings.m_PreampOn);
+      pStmt->BindInt(i++, sighound.m_settings.m_PNStartDecade);
+      pStmt->BindInt(i++, sighound.m_settings.m_PNStopDecade);
+      pStmt->BindDouble(i++, sighound.m_channelBW);
+      pStmt->BindDouble(i++, sighound.m_channelSpacing);
+      pStmt->BindInt(i++, sighound.m_BBSPSetpt);
+      pStmt->BindInt(i++, sighound.m_serialNumber);
+      pStmt->BindDouble(i++, sighound.m_HzPerPt);
+      pStmt->BindInt(i++, sighound.m_SubTraceSize);
+
       pStmt->ExecuteAndFree();
       CLOG(DEBUG, "SQLBackend") << "Metadata successfully inserted";
     } catch (Kompex::SQLiteException &e) {
@@ -92,9 +147,14 @@ namespace SignalHound {
       return false;
     }
 
-    //create new table
-    try {
-      pStmt->SqlStatement("CREATE TABLE [" + data_table + "] " + SWEEP_TABLE_PARAMS);
+    std::stringstream create;
+    create << "CREATE TABLE [" + data_table + "] (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, temperature DOUBLE NOT NULL";
+    for(int i=1; i<sighound.m_traceSize; i++) {
+      create << ", [f" << (int) sighound.GetFrequencyFromIdx(i) << "] DOUBLE";
+    }
+    create << ")";
+    try { //create new Table.  At this point, we should have the number of frequency
+      pStmt->SqlStatement(create.str());
     } catch (Kompex::SQLiteException &e) {
       CLOG(ERROR, "SQLBackend") << "Could not create table" + data_table;
       CLOG(ERROR, "SQLBackend") << "Reason given: " << e.GetErrorDescription();
@@ -104,23 +164,23 @@ namespace SignalHound {
   bool SHBackendSQLite::addSweep(std::vector<double> dbvalues) {
     CLOG(DEBUG, "SQLBackend") << "Inserting Data";
     std::stringstream data;
-    pStmt->BeginTransaction();
-    pStmt->Sql("INSERT INTO [" + data_table + "] (rowid, timestamp, csv) VALUES (NULL, ?, ?)");
+    data << "INSERT INTO [" << data_table << "] VALUES (NULL";
+    data << ", '" << currentTimeDate() << "'";
     for(unsigned int i=0; i < dbvalues.size(); i++)
-      data << dbvalues.at(i) << ( (i + 1 == dbvalues.size()) ? "" : ",");
-    CLOG(DEBUG, "SQLBackend") << "dbvalues.size()" << dbvalues.size();
+      data << ", " << dbvalues.at(i);
+    data << ")";
     try {
-      pStmt->BindString(1, currentTimeDate());
-      pStmt->BindString(2, data.str());
+      pStmt->BeginTransaction();
+      pStmt->Sql(data.str());
       pStmt->ExecuteAndFree();
       pStmt->CommitTransaction();
       return true;
     } catch (Kompex::SQLiteException &e) {
       CLOG(ERROR, "SQLBackend") << "Could not insert into " + data_table;
       CLOG(ERROR, "SQLBackend") << "Reason given: " << e.GetErrorDescription();
+      exit(1);
       return false;
     }
     return false;
-
   }
 };

@@ -45,18 +45,14 @@ namespace SignalHound {
     csv.open(dbfilename.c_str());
     return csv.is_open();
   }
-  bool SHBackendCSV::newSweep(map_str_dbl metadata) {
+  bool SHBackendCSV::newSweep(CMySignalHound &sighound) {
     /**< A new sweep is about to take place - Write out the headers.*/
     try {
-      CLOG(DEBUG, "CSVBackend") << metadata;
-      csv << "Timestamp";
-      double freq = metadata["start_freq"];
-      double fstep = metadata["sweep_step"];
-      unsigned int fcount = (int) metadata["sweep_count"];
-      for(unsigned int i=0; i < fcount; i++) {
-        csv << "," << (int) (freq + fstep*i);
-      } csv << std::endl << std::flush;
-      CLOG(INFO, "CSVBackend") << "CSV headers written";
+      CLOG(DEBUG, "CSVBackend") << "Initializing new CSV file";
+      csv << "Timestamp, Temperature";
+      for(int i=0; i<sighound.m_traceSize; i++)
+        csv << "," << sighound.GetFrequencyFromIdx(i);
+      CLOG(INFO, "CSVBackend") << "CSV headers written: total of" << sighound.m_traceSize << "points per trace";
       return true;
     } catch (std::exception &e) {
       CLOG(FATAL, "CSVBackend") << "Unable to write CSV headers: " << e.what();

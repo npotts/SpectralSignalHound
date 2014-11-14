@@ -48,6 +48,7 @@ namespace SignalHound {
       sqlite = new SHBackendSQLite(ok, dbfname);
       CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Unable to open database.";
     } if (!ok) return;
+
     if ( csvfname != "" ) {
       CLOG(DEBUG, "SignalHoundCLI") << "Initializing CSV: " << csvfname;
       csv = new SHBackendCSV(ok, csvfname);
@@ -55,66 +56,29 @@ namespace SignalHound {
     } if (!ok) return;
 
     //initialize the signal hound
+    sighound.m_serialNumber = -1;
     int rtn = sighound.Initialize();
+    CLOG(DEBUG, "SignalHoundCLI") << "Serial Number" << sighound.m_serialNumber << "Initialize() return:" << rtn;
+    rtn = (sighound.m_serialNumber == -1) ? 1 : rtn; //HACK.  SOmething is wrong with the API 
+
     CLOG_IF( (rtn == 0), INFO,  "SignalHoundCLI") << "SignalHound Initialized";
     CLOG_IF( (rtn == 1), ERROR, "SignalHoundCLI") << "No SignalHound Found";
     CLOG_IF( (rtn == 2), ERROR, "SignalHoundCLI") << "Unable to open SignalHound";
     CLOG_IF( (rtn == 98), ERROR, "SignalHoundCLI") << "Unable to find temperature correction file D<serial-number>.bin";
     CLOG_IF( (rtn == 99), ERROR, "SignalHoundCLI") << "Unable to find calibration constants <serial-number>.tep";
-
+    ok = (rtn == 0);
     if (rtn != 0) return;
 
-    if (preamp) sighound.PreamplifierOnOff(true);
+    sighound.PreamplifierOnOff(preamp);
     if (extref) sighound.SetExternalRef();
 
     CLOG(DEBUG, "SignalHoundCLI") << "SignalHound Temperature" << sighound.ReadTemperature();
     sighound.SetCenterAndSpan(sighound.m_settings.m_centerFreq, sighound.m_settings.m_spanFreq);
-    CLOG(DEBUG, "SignalHoundCLI") << "Sweep Parameters Ok: " << sighound.SetupForSweep();
+    rtn = sighound.SetupForSweep();
+    CLOG(DEBUG, "SignalHoundCLI") << "Sweep Parameters: " << ( rtn!=0  ? "Modified" : "Ok As-is");
+    rtn = sighound.SetupForSweep();
+    CLOG(DEBUG, "SignalHoundCLI") << "Sweep Parameters: " << ( rtn!=0  ? "Modified" : "Ok As-is");
     return;
-  }
-
-  bool SignalHoundCLI::runSweeps() {
-    bool rtn = true;
-    sighound.SetupForSweep();
-    //if (sqlite) sqlite->newSweep(sh->info_m());
-    //if (csv) csv->newSweep(sh->info_m());
-    if (repetitions == -1) {
-      CLOG(INFO, "SignalHoundCLI") << "Running until Ctrl-C is hit";
-      while (1)
-        runSweep();
-    }
-    if (repetitions > 0) {
-      CLOG(INFO, "SignalHoundCLI") << "Running a total of " << repetitions << " sweeps";
-      for (int i=0; i< repetitions; i++)
-        rtn &= runSweep();
-    } 
-    return rtn;
-    return true;
-  }
-
-  bool SignalHoundCLI::runSweep() {
-    std::cout << "asdasd" << std::endl;
-    // bool ok = true;
-    // int req_size;
-    // //run a single sweep, store data, then delay for pause_between_traces
-    // CLOG(INFO, "SignalHoundCLI") << "Starting a Sweep";
-    // req_size = sh->sweep();
-    // ok &= (req_size > 0);
-    // CLOG_IF(ok, DEBUG, "SignalHoundCLI") << "Sweep returned " << req_size << " data points";
-    // CLOG_IF(!ok, WARNING, "SignalHoundCLI") << "Sweep returned an error of " << -req_size;
-    // if (ok) {
-    //   if (sqlite) {
-    //     ok &= sqlite->addSweep(sh->powers);
-    //     CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Data not inserted!";
-    //   }
-    //   if (csv) {
-    //     ok &= csv->addSweep(sh->powers);
-    //     CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Data not added to CSV!";
-    //   }
-    // }
-    // usleep(pause_between_traces); //sleep between traces
-    // return ok;
-    return true;
   }
   void SignalHoundCLI::forceRange() {
     if ((sighound.m_settings.m_refLevel > 10) | (sighound.m_settings.m_refLevel > -150.0))
@@ -147,7 +111,7 @@ namespace SignalHound {
         }
       }
 
-      if ( (sighound.m_settings.m_SWPTMSetpoint < 0) | (sighound.m_settings.m_SWPTMSetpoint > 4))
+      if ( (sighound.m_settings.m_SWPTMSetpoint < -1) | (sighound.m_settings.m_SWPTMSetpoint > 4))
         sighound.m_settings.m_SWPTMSetpoint = 0;
 
       switch(sighound.m_settings.m_VDMode) {
@@ -235,16 +199,11 @@ namespace SignalHound {
       po::notify( vm );
       if ( vm.count( "help" ) ) { std::cout << all << "\n"; exit( 0 );  }
       if ( vm.count("version") ) { std::cout << "sh-spectrum-logger rev-" << SVN_REV << std::endl; exit(0); }
-      if ( logfname == "" ) {
-        el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "false");
-      } else {
-        el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, logfname);
-        el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "true");
-      }
       if ( vm.count("nostdout") )  tostdout = false;
       //Logger is already set to el::Level::Error, they want more...
       log_level = el::Level::Error;
       if ( vm.count("verbose") ) log_level = el::Level::Trace;
+      
       getSignalHoundLogger(); //reconfigures output
 
       preamp = false;
@@ -300,6 +259,9 @@ namespace SignalHound {
       }
 
       forceRange();
+      //std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+      if (logfname != "" ) el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Filename, logfname);
+      //std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 
       CLOG(DEBUG, "SignalHoundCLI") << "Freq Start " << sighound.m_settings.m_startFreq;
       CLOG(DEBUG, "SignalHoundCLI") << "Freq Stop " << sighound.m_settings.m_stopFreq;
@@ -332,5 +294,49 @@ namespace SignalHound {
     }
     std::cout << "No Args Provided" << std::endl;
     return false;
+  }
+  bool SignalHoundCLI::runSweeps() {
+    bool rtn = true;
+    sighound.SetupForSweep();
+    if (sqlite) sqlite->newSweep(sighound);
+    if (csv) csv->newSweep(sighound);
+    if (repetitions == -1) {
+      CLOG(INFO, "SignalHoundCLI") << "Running until Ctrl-C is hit";
+      while (1)
+        runSweep();
+    }
+    if (repetitions > 0) {
+      CLOG(INFO, "SignalHoundCLI") << "Running a total of " << repetitions << " sweeps";
+      for (int i=0; i< repetitions; i++)
+        rtn &= runSweep();
+    } 
+    return rtn;
+  }
+
+  bool SignalHoundCLI::runSweep() {
+    CLOG(INFO, "SignalHoundCLI") << "Starting a Sweep";
+    sighound.SetupForSweep();
+    double temp = sighound.ReadTemperature();
+    int rtn = sighound.DoSweep();
+    CLOG_IF( (rtn != 0), DEBUG, "SignalHoundCLI") << "Error on sweep: " << rtn;
+    if (rtn == 0) {
+      std::vector<double> vals;
+      vals.push_back(temp);
+      for (int i=1; i < sighound.m_traceSize; i++) {
+        vals.push_back(mW2dBm(sighound.pDataMax[i]));
+      }
+      CLOG(DEBUG, "SignalHoundCLI") << " Vals Size:" << vals.size();
+
+      if (sqlite) {
+        bool ok = sqlite->addSweep(vals);
+        CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Data not inserted!";
+      }
+      if (csv) {
+        bool ok = csv->addSweep(vals);
+        CLOG_IF(!ok, ERROR, "SignalHoundCLI") << "Data not added to CSV!";
+      }
+    }
+    usleep(pause_between_traces); //sleep between traces
+    return (rtn == 0);
   }
 };

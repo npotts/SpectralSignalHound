@@ -43,7 +43,6 @@
 #include <iostream>
 #include <stdlib.h>
 #include "../ext/sh-headless/MySignalHound.h"
-//#include "SHLAPI.h"
 
 
 #define _ELPP_THREAD_SAFE 0
@@ -52,13 +51,14 @@
 #define _ELPP_STACKTRACE_ON_CRASH 1
 #define _ELPP_NO_DEFAULT_LOG_FILE 1
 #define _ELPP_STACKTRACE_ON_CRASH 1
-#define _ELPP_DEBUG_ERRORS 0
+#undef _ELPP_DEBUG_ERRORS
 #include "../ext/easyloggingpp/src/easylogging++.h"
 
 namespace SignalHound {
 
   typedef std::map<std::string, double> map_str_dbl;
 
+  extern std::string logfname; ///If non-empty, will write logging messages here
   extern bool tostdout; ///If true, logging will be written to stdout
   extern el::Level log_level; ///Level of logging to display
   /** \brief gets a custom named logging object

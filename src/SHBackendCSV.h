@@ -46,7 +46,7 @@ namespace SignalHound {
     ~SHBackendCSV();
     SHBackendCSV(bool &ok, std::string);
     bool setOutput(std::string);
-    bool newSweep(map_str_dbl);
+    bool newSweep(CMySignalHound &);
     bool addSweep(std::vector<double>);
   private:
     std::ofstream csv;

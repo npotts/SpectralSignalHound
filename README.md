@@ -2,11 +2,67 @@ SpectralSignalHound
 ===================
 
 Spectral Signal Hound is a RF Spectral Logger using a SA44B Signal Hound Software 
-Defined Radio (SDR) based off the Basic Linux API.  It currently only supports 
-the x86/amd64 architectures, but it is planned to build on ARM as well.  In
-particular, the software is build on the API found at [https://www.signalhound.com/support/downloads/sa44b-sa124b/downloads](https://www.signalhound.com/support/downloads/sa44b-sa124b-downloads).
+Defined Radio (SDR).  There are two iterations of the software. The first is found
+in the  based off the Basic Linux API and only supports the intel architecture and 
+is present in the linuxapi branch.  The second iteration is based on the headless
+API and it supports the intel and arm architectures.  
 
-![API Used](/README.d/api-used.png "Location of API used")
+
+[linuxapi](README-1.x.md)
+---------------------------------------------------------------------------------
+
+This version (1.x.y series) allows for fine grain control of the 
+SignalHound via the 'linuxapi' release.  This, as far as I can tell,
+will never be supported on ARM, and only supports intel archs.  The
+particular API is found [here] (https://www.signalhound.com/support/downloads/sa44b-sa124b-downloads).
+The image below shows the location on the download page.
+
+![API Used](/README.d/1.x-api-used.png "Location of API used")
+
+What is Excels At
++++++++++++++++++
+
+- Fine grain control of sweeps
+- Slow Sweep times
+- Huge sweep resolution
+- Might be able to compile on windows.  Havent Tried
+
+What is Sucks At
+++++++++++++++++
+
+- Saving data to a SQL database (due to enormous size)
+- Running on ARM processors
+- Running Fast (~couple seconds) sweeps.  Sweeping the whole band in slow mode takes 30 minutes per pass
+
+[headless](https://github.com/npotts/SpectralSignalHound/blob/master/README.md)
+---------------------------------------------------------------------------------
+
+This is the the 2.x.y release series, and it allows for a more
+"spectrum analyzer" type sweep methods in addition to controlling
+more of the fundamental parameters for you.  This does allow for better
+storing of the data in SQLite databases, different sweep patterns, as well
+as the ability to run on ARM.
+
+![API Used](/README.d/2.x-api-used.png "Location of API used")
+
+What is Excels At
++++++++++++++++++
+
+- Shoving data and metadata into SQLite database
+- Fast Sweep times
+- Sweep Modes
+  - Fast
+  - Slow
+  - 5MHz Fixed Bandwidth
+  - Zero Span
+  - Phase Noise
+- Runs on ARM
+
+What is Sucks At
+++++++++++++++++
+
+- High Resolution data
+- Some features are not tweakable, and underlying library can overwrite configured settings
 
 License
 =======
@@ -18,158 +74,177 @@ improvements by forking, and pull requests.
 Building
 ========
 
-This application requires a couple external (git submodules) and some mostly modern version of boost::program_options. My intent is to eventually setup a Travis-CI instance.
+This build process ONLY describes the 2.x series. In order to view the [old 1.x linuxapi you will need to browse here](README-1.x.md).
 
-Get the sources
+Required Libraries
+------------------
+
+The following C++ libraries are required.  Some are included as git submodules.
+
+- boost::program_options
+- SignalHound API
+- Kompex Libraries (git submodule)
+- EasyLoggingpp (git submodule)
+
+
+Build Workflow
 ---------------
 
 ```
 git clone --recursive git@github.com:npotts/SpectralSignalHound.git
-```
-
-Build the Kompex Libraries
---------------------------
-
-This uses a static built library from the Kompex SQLite Wrapper.  This builds the library.
-
-```
+#This uses a static built library from the Kompex SQLite Wrapper.  This builds the library.
 cd SpectralSignalHound/ext/kompex
 ./configure && make
 cd ../../
-```
-
-Build sh-spectrum
------------------
-
-```
-cd SpectralSignalHound
 make
 ```
 
-sh-spectrum Usage
-=================
+sh-spectrum2 Usage
+==================
 
-sh-spectrum has a pretty functional built-in --help listing. As of 2014-11-10:
+sh-spectrum2 has a pretty functional built-in --help listing. As of 2014-11-14:
 
 ```
 % sh-spectrum --help
 
-sh-spectrum-logger: A Signal Hound (SA44B) Spectrum Analyzer Logger
+sh-spectrum: A Signal Hound (SA44B) Spectrum Analyzer Logger
 
-Usage: sh-spectrum-logger <Arguments>
+Usage: sh-spectrum <Arguments>
 General Options:
-  -h [ --help ]           Show this message
-  -V [ --version ]        Print version information and quit
-  --nostdout              Nothing will be printed to stdout. Return value will 
-                          indicate fatal errors. If you want to see errors, you
-                          can still use --log below.
-  -l [ --log ] arg        Write program log to file specified by arg. Defaults 
-                          to stdout/stderr.
-  -v [ --verbose ]        Setting this will cause a gratuitous amount of babble
-                          to be displayed.  This overrides --quiet.
-  --caldata arg           Use this file as the calibration data for the signal 
-                          hound.  This should radically spead up 
-                          initialization.  Use 'sh-extract-cal-data' to extract
-                          this calibration data and reference it here.
-  --attenuation arg (=10) Set the internal input attenuation.  Must be one of 
-                          the following values: 0.0, 5.0, 10.0 (default), or 
-                          15.0.  Any other value will revert to the default.
-  --low-mixer             If flag is set, this will change the front end down 
-                          converter to work with frequencies below 150MHz. If 
-                          your frequency range will traverse above 150MHz, do 
-                          not set this flag.
-  --sensitivity arg (=0)  Set the sensitivity of the Signal Hound.  0 (default)
-                          is lowest sensitivity, 2 is the highest.
-  --decimate arg (=1)     Sample Rate is set to 486.111Ksps/arg.  Must be 
-                          between [1, 16].  Resolution bandwidth is calculated 
-                          from this and fft (below).
-  --alt-iflo              If flag is set, this forces selection of the 2.9MHz 
-                          Intermediate Frequency (IF) Local Oscillator (LO).  
-                          The default is 10.7MHz and has higher selectivity but
-                          lower sensitivity.  The 2.9MHz IF LO which features 
-                          higher sensitivity yet lower selectivity.
-  --alt-clock             If flag is set, this forces selection of the 22.5MHz 
-                          ADC clock.  The default uses a 23-1/3 MHz clock, but 
-                          changing this is helpful if the signal you are 
-                          interested in is a multiple of a 23-1/3MHz.
-  --device arg (=0)       Select which Signal Hound Device to use.  Up to 8 can
-                          be connected to the same computer.  This seems to be 
-                          disabled in the linux API
-  --preset                If flag is set, the Signal Hound will be preset 
-                          immediately after initialzing and prior to sampling. 
-                          This does set the Signal Hound to a known state, but 
-                          it also adds another 2.5 seconds to start up time.
-  --extref                If flag is set, the Signal Hound will attempt to use 
-                          a 10MHz external reference.  Input power to the 
-                          Signal Hound must be greater than 0dBm in order for 
-                          this to be used.
-  --trigger arg (=0)      Change the trigger mode.  0 (default) triggers 
-                          immediately. 1  will only trigger on an external 
-                          logic high. 2 will cause the trigger signal to pulse 
-                          high when data collection begins.
-  --preamp                If flag is set, will attempt to activate the built in
-                          RF preamplifier.  Only available on a Signal Hound 
-                          SA44B.
-
-RF Options:
-  --start arg (=1000000)     Lower bound frequency to use for the spectral 
-                             sweep.
-  --stop arg (=10000000)     Upper bound frequency to use for the spectral 
-                             sweep.  Due to rounding, you may get measured 
-                             values past this value.
-  --image-rejection arg (=0) Configure Image Rejection.  Default of 0 masks 
-                             both high and low side injection.  Value of 1 only
-                             apply high side injection.  Value of 2 only 
-                             applies low side injection.
-  --fft arg (=-1)            Size of the FFT. Default value of -1 will 
-                             autoselect the prefered FFT window. This and the 
-                             decimation setting are used to calculate the RBW. 
-                             In --slow mode, may be 16-65536 in powers of 2 
-                             while the default resolves to 1024.  In --fast 
-                             mode, may be 1, 16-256 in powers of 2 while the 
-                             default resolves to 16.
-  --average arg (=16)        Only used in --slow sweep.  Arg is the number of 
-                             FFTs that get averaged together to produce the 
-                             output. The value of (average*fft) must be an 
-                             integer multiple of 512.
-
-Operational Modes:
-  --extract-caldata arg     Gather the calibration data from the Signal Hound 
-                            and save it to the file pointed to by <arg>
-  --info [=arg(=2)]         Calculated parameters and dumps a list of what 
-                            would be done.  This is helpful if you want to see 
-                            the Resolution Bandwidth (RBW) or other RF 
-                            parameters.  Due to limitations in the SignalHound 
-                            API, some parameters will not be correct until the 
-                            unit is initialized
-  --fast [=arg(=1)]         Run a fast sleep. Fast sweep captures a single 
-                            sweep of data. The start_freq, and stop_freq are 
-                            rounded to the nearest 200KHz. If fft=1, only the 
-                            raw power is sampled, and samples are spaced 200KHz
-                            apart. If fft > 1, samples are spaced 200KHz.  RBW 
-                            is set solely on FFT size as the decimation is 
-                            equal to 1 (fixed internally)
-  --slow [=arg(=0)]         Run a slow sweep. Slow sweep is which is more 
-                            thorough and not bandwidth limited.  Data points 
-                            will be spaced 486.111KHz/(fft*decimation).  Each 
-                            measurement cycle will take: (40 + 
-                            (fft*average*decimation)/486)*(stop_freq - 
-                            start_freq)/201000 milliseconds, rounded up. 
-                            Furthermore, fft*average must be a integer multiple
-                            of 512.
-  --delay arg (=0)          In order to limit on the rediculously large file 
-                            sizes, how long should this program pause between 
-                            sweeps in milliseconds
-  -n [ --sweeps ] arg (=-1) How many sweeps should be done before exiting.  
-                            Default of -1 means sweep forever (well... at least
-                            until Ctrl-C hit or power cycled)
+  -h [ --help ]         Show this message
+  -V [ --version ]      Print version information and quit
+  --nostdout            Nothing will be printed to stdout. Return value will 
+                        indicate fatal errors. If you want to see errors, you 
+                        can still use --log below.
+  -l [ --log ] arg      Write program log to file specified by arg.
+  -v [ --verbose ]      Setting this will emit a gratuitous amount of babble.
 
 Data Output:
   --db arg              Write data into a sqlite database specified by the arg.
   --csv arg             Produce a comma seperated file with data specified by 
                         arg.
 
+RF Options:
+  --preamp                  If flag is set, will attempt to activate the built 
+                            in RF preamplifier.  Only available on a Signal 
+                            Hound SA44B.
+  --extref                  If flag is set, the Signal Hound will attempt to 
+                            use a 10MHz external reference.  Input power to the
+                            Signal Hound must be greater than 0dBm in order for
+                            this to be used.
+  --center arg (=403000000) Set the center frequency in Hz.  Acceptable values 
+                            are similar to 4e3, 4000, 4000.0 which all resolve 
+                            to 4kHz.
+  --span arg (=6000000)     Set the span in Hz.  This value is ignored in 
+                            --zspan and --phase-noise modes.
+  --start arg (=-1)         Set the starting sweep frequency in Hz. If this and
+                            --stop are both not the defaults, these values will
+                            be used for the start and stop frequencies. This 
+                            value is completely ignored in --zspan and 
+                            --phase-noise modes, which rely on --center only.
+  --stop arg (=-1)          Set the stop sweep frequency in Hz. If this and 
+                            --start are both not the defaults, these values 
+                            will be used for the start and stop frequencies. 
+                            Simlar to --start, this value is completely ignored
+                            in --zspan and --phase-noise modes and strictly 
+                            relies on --center only.
+  --reflevel arg (=-10)     Set the reference level in dBm.  Valid values are 
+                            between +10.0 and -150.0
+  --attenuation arg (=3)    Set the input attenuation.
+                            0 = 0dB
+                            1 = 5dB
+                            2 = 10dB
+                            3 = 15dB
+  --rbw arg (=-1)           Attempt to set the resolution bandwidth (RBW).  The
+                            actual RBW will be altered to reflect what it 
+                            physically possible. Default of -1 will 
+                            automatically select a RBW. Allowed values are -1, 
+                            and values between 2 and 24 (inclusive).
+                            2 = 5 MHz
+                            3 = 250 kHz
+                            4 = 100 kHz
+                            5 = 50 kHz
+                            6 = 25 kHz
+                            7 = 12.5 kHz
+                            8 = 6.4 kHz
+                            9 = 3.2 kHz
+                            10 = 1.6 kHz
+                            11 = 800 Hz
+                            12 = 400 Hz
+                            13 = 200 Hz
+                            14 = 100 Hz
+                            15 = 50 Hz
+                            16 = 25 Hz
+                            17 = 12.5 Hz
+                            18 = 6.4 Hz
+                            19 = 3.2 Hz
+                            20 = 1.6 Hz
+                            21 = .8 Hz
+                            22 = .4 Hz
+                            23 = .2 Hz
+                            24 = .1 Hz
+  --vbw arg (=-1)           Attempt to set the Video bandwidth (RBW).  The VBW 
+                            needs to be smaller than the RBW, and is not used 
+                            at all in Zero Span Sweep Mode. Default of -1 will 
+                            automatically select a VBW. The values of VBW are 
+                            the same as RBW.
+  --no-img-reject           If set, it will remove the image rejection that is 
+                            normally applied.
+  --sweep-speed arg (=0)    Suggested Sweep speed. Allowed values are -1 to 4. 
+                            Use -1 sparingly, as documentation mentions it 
+                            should rarely be set to -1.
+                            -1: Ub3r fast (b0rk3d?)
+                            0: (default) Fast
+                            ...
+                            4: Slow.
+                            Values outside this range will fall back to the 
+                            default.
+  --vdmode arg (=4)         Set the mode for Video Detector Processing. 
+                            Documentation is rather sparse, so the details here
+                            are gathered from varible names.
+                            1 = Process as power
+                            2 = Process as Voltage
+                            3 = Process as Log
+                            4 (default) = Bypass Video Processing.
+  --vdmma arg (=4)          Set the mode for Video Detector Min Max. 
+                            Documentation is rather sparse, so the details here
+                            are gathered from varible names.
+                            1 = Min-Max
+                            2 = Min Only
+                            3 = Max Only
+                            4 = Average Only.
+
+Operational Modes:
+  --delay arg (=0)      In order to limit on the rediculously large file sizes,
+                        how long should this program pause between sweeps in 
+                        milliseconds
+  --sweeps arg (=-1)    How many sweeps should be done before exiting.  Default
+                        of -1 means sweep forever (well... at least until 
+                        Ctrl-C hit or power cycled)
+  --slow                Runs a slow sweep
+  --fast                Runs a fast sweep
+  --rbw5MHz             Sweep with a fixed RBW of 5MHz
+  --zspan               Run a Zero Span Sweep
+  --phase-noise         Run phase-noise measurement
+  --tracking-gen        Run a Tracking Generator sweep - Completely untested as
+                        I do not have a tracking generator signal hound.
+
+Zero Span Options:
+  --zs-mode arg (=0)       Zero Span Demodulation Mode.  0=Amplitude, 
+                           1=Frequency, 2=Phase, all others will revert to 
+                           default.
+  --zs-ifbw arg (=0)       Select the IF bandwidth. 1=240kHz, 2=120kHz, 
+                           4=60kHz, 8=30kHz, 16=15kHz.  Other values will fall 
+                           back to the default.
+  --zs-sweep-time arg (=1) Set the sweep time (in seconds) when in zero span 
+                           mode.
+
+Phase Noise Options:
+  --pn-decade-start arg (=1) Phase Noise Decade Start
+  --pn-decade-stop arg (=5)  Phase Noise Decade Stop
+
 ```
+
 
 
 Further Reading

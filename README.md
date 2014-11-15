@@ -95,7 +95,7 @@ make
 
 In order to properly run your SignalHound, you will need to gather 
 two files from the windows client a-priori.  They are named 
-D&lt;serial number&gt;.bin and &lt;serial number&gt;.tep  These need to be in 
+D&lt;serial-number&gt; .bin and &lt;serial-number&gt;.tep  These need to be in 
 the current working directory as the Signal Hound library uses these
 for quickly initializing and temperature compensation.  Once you have 
 these files, you can run sweeps.

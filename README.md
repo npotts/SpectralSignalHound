@@ -1,5 +1,4 @@
-SpectralSignalHound
-===================
+# SpectralSignalHound
 
 Spectral Signal Hound is a RF Spectral Logger using a SA44B Signal Hound Software 
 Defined Radio (SDR).  There are two iterations of the software. The first is found
@@ -8,8 +7,7 @@ is present in the linuxapi branch.  The second iteration is based on the headles
 API and it supports the intel and arm architectures.  
 
 
-[linuxapi](README-1.x.md)
----------------------------------------------------------------------------------
+# [linuxapi](README-1.x.md)
 
 This version (1.x.y series) allows for fine grain control of the 
 SignalHound via the 'linuxapi' release.  This, as far as I can tell,
@@ -19,23 +17,22 @@ The image below shows the location on the download page.
 
 ![API Used](/README.d/1.x-api-used.png "Location of API used")
 
-What is Excels At
-+++++++++++++++++
+## What is Excels At
+
 
 - Fine grain control of sweeps
 - Slow Sweep times
 - Huge sweep resolution
 - Might be able to compile on windows.  Havent Tried
 
-What is Sucks At
-++++++++++++++++
+## What is Sucks At
 
 - Saving data to a SQL database (due to enormous size)
 - Running on ARM processors
 - Running Fast (~couple seconds) sweeps.  Sweeping the whole band in slow mode takes 30 minutes per pass
 
-[headless](https://github.com/npotts/SpectralSignalHound/blob/master/README.md)
----------------------------------------------------------------------------------
+# [headless](https://github.com/npotts/SpectralSignalHound/blob/master/README.md)
+
 
 This is the the 2.x.y release series, and it allows for a more
 "spectrum analyzer" type sweep methods in addition to controlling
@@ -45,8 +42,7 @@ as the ability to run on ARM.
 
 ![API Used](/README.d/2.x-api-used.png "Location of API used")
 
-What is Excels At
-+++++++++++++++++
+## What is Excels At
 
 - Shoving data and metadata into SQLite database
 - Fast Sweep times
@@ -58,26 +54,22 @@ What is Excels At
   - Phase Noise
 - Runs on ARM
 
-What is Sucks At
-++++++++++++++++
+## What is Sucks At
 
 - High Resolution data
 - Some features are not tweakable, and underlying library can overwrite configured settings
 
-License
-=======
+# License
 
 This software is licensed under a BSD license.  You are not required to, but encouraged, 
 to let the original author know if you are using this.  Please submit any bug fixes or 
 improvements by forking, and pull requests.
 
-Building
-========
+# Building
 
 This build process ONLY describes the 2.x series. In order to view the [old 1.x linuxapi you will need to browse here](README-1.x.md).
 
-Required Libraries
-------------------
+## Required Libraries
 
 The following C++ libraries are required.  Some are included as git submodules.
 
@@ -87,10 +79,10 @@ The following C++ libraries are required.  Some are included as git submodules.
 - EasyLoggingpp (git submodule)
 
 
-Build Workflow
----------------
+## Build Workflow
 
-```
+
+```shell
 git clone --recursive git@github.com:npotts/SpectralSignalHound.git
 #This uses a static built library from the Kompex SQLite Wrapper.  This builds the library.
 cd SpectralSignalHound/ext/kompex
@@ -99,12 +91,14 @@ cd ../../
 make
 ```
 
-sh-spectrum2 Usage
-==================
+# sh-spectrum2 Usage
 
-sh-spectrum2 has a pretty functional built-in --help listing. As of 2014-11-14:
 
-```
+## Built in Help
+
+sh-spectrum2 has a pretty functional built-in --help listing.
+
+```shell
 % sh-spectrum --help
 
 sh-spectrum: A Signal Hound (SA44B) Spectrum Analyzer Logger
@@ -245,10 +239,31 @@ Phase Noise Options:
 
 ```
 
+## Slow and Fast Sweeps
 
+Use a fast sweep from 400 to 406MHz enabling the preamp attemping to use a
+10MHz external reference.  Data will be stored in the SQLite database 
+"sweep.db".
 
-Further Reading
-===============
+```shell
+sh-spectrum --fast --start 400e6 --stop 406e6 --preamp --extref --db sweep.db
+```
+
+Sweep from 400 to 406MHz slowly saving the data to sweep.csv.
+```shell
+sh-spectrum --start 400e6 --stop 406e6 --slow --csv sweep.csv
+
+```
+
+#[Plotting Tools](plotting/)
+
+So now that you just collected some huge amount of data stored in a text file,
+what can you do with it?  There are some simple plotting tools that use python
+and the matplotlib library for making medicore plots like below from csv files:
+
+![Plot of Metband connected to a signal generator](/README.d/metband.png "Plot of Metband connected to a signal generator")
+
+# Further Reading
 
 - Details on (C++) sh-spectrum: [src/Readme.md](src/)
 - Plotting utilities: [plotting/Readme.md](plotting/)

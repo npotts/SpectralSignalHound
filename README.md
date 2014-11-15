@@ -99,7 +99,7 @@ make
 sh-spectrum2 has a pretty functional built-in --help listing.
 
 ```shell
-% sh-spectrum --help
+% sh-spectrum2 --help
 
 sh-spectrum: A Signal Hound (SA44B) Spectrum Analyzer Logger
 
@@ -246,12 +246,12 @@ Use a fast sweep from 400 to 406MHz enabling the preamp attemping to use a
 "sweep.db".
 
 ```shell
-sh-spectrum --fast --start 400e6 --stop 406e6 --preamp --extref --db sweep.db
+sh-spectrum2 --fast --start 400e6 --stop 406e6 --preamp --extref --db sweep.db
 ```
 
 Sweep from 400 to 406MHz slowly saving the data to sweep.csv.
 ```shell
-sh-spectrum --start 400e6 --stop 406e6 --slow --csv sweep.csv
+sh-spectrum2 --start 400e6 --stop 406e6 --slow --csv sweep.csv
 
 ```
 

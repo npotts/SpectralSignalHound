@@ -30,7 +30,7 @@
  */
 
 #include "SignalHoundCLI.h"
-#define SVN_REV "0.0.0"
+#define SVN_REV "1.0.0"
 
 namespace po = boost::program_options;
 namespace SignalHound {

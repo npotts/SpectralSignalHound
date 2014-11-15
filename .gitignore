@@ -35,3 +35,8 @@ sh-spectrum
 *.db
 *.sqlite
 *.csv
+*.png
+
+#calibration files
+D*.bin
+*.tep

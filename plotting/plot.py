@@ -49,6 +49,7 @@ def datetime_from_string(t):
 
 
 def plotSpec(dat_filename):
+    out = dat_filename + ".png"
     with open(dat_filename, "r") as csvfile:
         #read headers from the file
         headers = csvfile.readline().split(",")
@@ -103,6 +104,8 @@ def plotSpec(dat_filename):
     #    orientation='portrait', papertype=None, format=None,
     #    transparent=False, bbox_inches=None, pad_inches=0.1,
     #    frameon=None)
-    savefig("out.png", format="png", dpi=200, transparent=True, bbox_inches='tight')
+    savefig(out, format="png", dpi=200, transparent=True, bbox_inches='tight')
 
-plotSpec("403-test-trace.csv")
+
+#plotSpec("403-test-trace.csv")
+plotSpec("../wide.csv")

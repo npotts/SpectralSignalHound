@@ -93,6 +93,12 @@ make
 
 # sh-spectrum2 Usage
 
+In order to properly run your SignalHound, you will need to gather 
+two files from the windows client a-priori.  They are named 
+D<serial number>.bin and <serial number>.tep  These need to be in 
+the current working directory as the Signal Hound library uses these
+for quickly initializing and temperature compensation.  Once you have 
+these files, you can run sweeps.
 
 ## Built in Help
 

@@ -2,7 +2,7 @@
 
 Spectral Signal Hound is a RF Spectral Logger using a SA44B Signal Hound Software 
 Defined Radio (SDR).  This is the first iteration that used the Basic Linux API 
-and only supports the intel architecture.  For the 2.x series, click [here](../master/).
+and only supports the intel architecture.  For the 2.x series, click [here](https://github.com/npotts/SpectralSignalHound).
 It is represented in the linuxapi branch. This version (1.x.y series) allows
 for fine grain control of the SignalHound. The particular API used can be found
 [here](https://www.signalhound.com/support/downloads/sa44b-sa124b-downloads).

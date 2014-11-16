@@ -1,53 +1,47 @@
-SpectralSignalHound
-===================
+# SpectralSignalHound
 
 Spectral Signal Hound is a RF Spectral Logger using a SA44B Signal Hound Software 
-Defined Radio (SDR) based off the Basic Linux API.  It currently only supports 
-the x86/amd64 architectures, but it is planned to build on ARM as well.  In
-particular, the software is build on the API found at [https://www.signalhound.com/support/downloads/sa44b-sa124b/downloads](https://www.signalhound.com/support/downloads/sa44b-sa124b-downloads).
+Defined Radio (SDR).  This is the first iteration that used the Basic Linux API 
+and only supports the intel architecture.  For the 2.x series, click [here](tree/linuxapi/).
+It is represented in the linuxapi branch. This version (1.x.y series) allows
+for fine grain control of the SignalHound. The particular API used can be found
+[here](https://www.signalhound.com/support/downloads/sa44b-sa124b-downloads).
+The image below shows the location on the download page.
 
 ![API Used](/README.d/api-used.png "Location of API used")
 
-License
-=======
+## What is Excels At
+
+- Fine grain control of sweeps
+- Slow Sweep times
+- Huge sweep resolution
+
+##What is Sucks At
+
+
+- Saving data to a SQL database (due to enormous size)
+- Running on ARM processors
+- Running Fast (~couple seconds) sweeps.  Sweeping the whole band in slow mode takes 30 minutes per pass
+
+# License
+
 
 This software is licensed under a BSD license.  You are not required to, but encouraged, 
 to let the original author know if you are using this.  Please submit any bug fixes or 
 improvements by forking, and pull requests.
 
-Building
-========
-
-This application requires a couple external (git submodules) and some mostly modern version of boost::program_options. My intent is to eventually setup a Travis-CI instance.
-
-Get the sources
----------------
+# Building
 
 ```
 git clone --recursive git@github.com:npotts/SpectralSignalHound.git
-```
-
-Build the Kompex Libraries
---------------------------
-
-This uses a static built library from the Kompex SQLite Wrapper.  This builds the library.
-
-```
 cd SpectralSignalHound/ext/kompex
 ./configure && make
 cd ../../
-```
-
-Build sh-spectrum
------------------
-
-```
-cd SpectralSignalHound
 make
 ```
 
-sh-spectrum Usage
-=================
+# sh-spectrum Usage
+
 
 sh-spectrum has a pretty functional built-in --help listing. As of 2014-11-10:
 
@@ -171,14 +165,8 @@ Data Output:
 
 ```
 
+# Further Reading
 
-Further Reading
-===============
 
 - Details on (C++) sh-spectrum: [src/Readme.md](src/)
 - Plotting utilities: [plotting/Readme.md](plotting/)
-
-
-
-
-

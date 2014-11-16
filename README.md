@@ -7,12 +7,12 @@ is present in the linuxapi branch.  The second iteration is based on the headles
 API and it supports the intel and arm architectures.  
 
 
-# [linuxapi](README-1.x.md)
+# [linuxapi](tree/linuxapi/)
 
 This version (1.x.y series) allows for fine grain control of the 
 SignalHound via the 'linuxapi' release.  This, as far as I can tell,
 will never be supported on ARM, and only supports intel archs.  The
-particular API is found [here] (https://www.signalhound.com/support/downloads/sa44b-sa124b-downloads).
+particular API is found [here](https://www.signalhound.com/support/downloads/sa44b-sa124b-downloads).
 The image below shows the location on the download page.
 
 ![API Used](/README.d/1.x-api-used.png "Location of API used")
@@ -67,7 +67,7 @@ improvements by forking, and pull requests.
 
 # Building
 
-This build process ONLY describes the 2.x series. In order to view the [old 1.x linuxapi you will need to browse here](README-1.x.md).
+This build process ONLY describes the 2.x series. In order to view the [old 1.x linuxapi you will need to browse here](tree/linuxapi/).
 
 ## Required Libraries
 

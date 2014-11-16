@@ -7,7 +7,7 @@ is present in the linuxapi branch.  The second iteration is based on the headles
 API and it supports the intel and arm architectures.  
 
 
-# [linuxapi](tree/linuxapi/)
+# [linuxapi](https://github.com/npotts/SpectralSignalHound/tree/linuxapi)
 
 This version (1.x.y series) allows for fine grain control of the 
 SignalHound via the 'linuxapi' release.  This, as far as I can tell,
@@ -67,7 +67,7 @@ improvements by forking, and pull requests.
 
 # Building
 
-This build process ONLY describes the 2.x series. In order to view the [old 1.x linuxapi you will need to browse here](tree/linuxapi/).
+This build process ONLY describes the 2.x series. In order to view the [old 1.x linuxapi you will need to browse here](https://github.com/npotts/SpectralSignalHound/tree/linuxapi).
 
 ## Required Libraries
 

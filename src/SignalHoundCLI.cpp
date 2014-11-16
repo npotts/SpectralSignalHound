@@ -115,8 +115,8 @@ namespace SignalHound {
     try {
       po::options_description od_general(
         ""
-        "sh-spectrum-logger: A Signal Hound (SA44B) Spectrum Analyzer Logger\n"
-        "\nUsage: sh-spectrum-logger <Arguments>\n"
+        "sh-spectrum: A Signal Hound (SA44B) Spectrum Analyzer Logger\n"
+        "\nUsage: sh-spectrum <Arguments>\n"
         "General Options" );
       od_general.add_options()
       ( "help,h", "Show this message" )
@@ -167,7 +167,7 @@ namespace SignalHound {
       po::store( po::command_line_parser( ac, av ).options( all ).run(), vm );
       po::notify( vm );
       if ( vm.count( "help" ) ) { std::cout << all << "\n"; exit( 0 );  }
-      if ( vm.count("version") ) { std::cout << "sh-spectrum-logger rev-" << SVN_REV << std::endl; exit(0); }
+      if ( vm.count("version") ) { std::cout << "sh-spectrum rev-" << SVN_REV << std::endl; exit(0); }
       if ( logfname == "" ) {
         el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToFile, "false");
       } else {

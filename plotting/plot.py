@@ -31,6 +31,7 @@
 
 import csv
 import time
+import sqlite3
 from sys import stdout
 from matplotlib.pylab import subplots, suptitle, savefig
 import numpy as np
@@ -47,13 +48,39 @@ def datetime_from_string(t):
         print("Cannot convert %s: %s" % (t, e))
         return None
 
+def dataFromSQLite(sqlite_fname, sql_table):
+    """Returns a 2-tuple arrays of matplotlib time axis, and frequency data"""
+    #PRAGMA table_info( your_table_name );
+    with sqlite3.connect(sqlite_fname) as db:
+        data={}
 
-def plotSpec(dat_filename):
-    out = dat_filename + ".png"
-    with open(dat_filename, "r") as csvfile:
+        cur = db.cursor();
+        cur.execute("PRAGMA table_info( %s );" % sql_table) #get table structure
+        headers = [row[1] for row in cur.fetchall()] 
+        headers.remove("rowid")
+        headers.remove("temperature")
+        headers.sort();
+        for col in headers:
+            data[col]=[]
+        q = "SELECT [%s] FROM %s" % ("],[".join(headers), sql_table) #form query to yank raw data
+        cur.execute(q);
+        for row in cur.fetchall():
+            for i in range(len(headers)):
+                data[headers[i]].append(row[i])
+        timestamps = np.array([dates.date2num(datetime_from_string(t)) for t in data["timestamp"]])
+        headers.remove("timestamp")
+        plot_data=[data[col] for col in headers]
+        plot_data = np.array(plot_data).astype(np.float)
+        freq_headers = np.array(headers).astype(np.float)
+        return (freq_headers, timestamps, plot_data);
+    return (None, None, None)
+
+def dataFromCSV(csv_fname):
+    """Returns a 2-tuple arrays of matplotlib time axis, and frequency"""
+    with open(csv_fname, "r") as csvfile:
         #read headers from the file
         headers = csvfile.readline().split(",")
-        dreader = csv.DictReader(csvfile, fieldnames=headers, restkey=None, restval="-120")
+        dreader = csv.DictReader(csvfile, fieldnames=headers, restkey=None, restval="-200")
         data={}
         for col in headers:
             data[col]=[]
@@ -63,21 +90,39 @@ def plotSpec(dat_filename):
                     data[col].append(float(row[col]))
                 except:
                     data[col].append(row[col])
+        
+        #data loaded
+        timestamps = np.array([dates.date2num(datetime_from_string(t)) for t in data["timestamp"]])
+        headers.remove("timestamp")
+        headers.remove("temperature")
+        headers.sort()
+        plot_data=[]
+        for col in headers:
+            plot_data.append(data[col])
+        plot_data = np.array(plot_data).astype(np.float)
+        freq_headers = np.array(headers).astype(np.float)
+        return (freq_headers, timestamps, plot_data);
 
-    #data loaded
-    np_time_grid = np.array([dates.date2num(datetime_from_string(t)) for t in data["timestamp"]])
-    headers.remove("timestamp")
-    headers.remove("temperature")
-    headers.sort()
-    plot_data=[]
-    for col in headers:
-        plot_data.append(data[col])
-    plot_data = np.array(plot_data).astype(np.float)
-    freq_headers = np.array(headers).astype(np.float)
+def plotSpec(dat_filename, table=""):
+    out = dat_filename + ".png"
+    timestamps = None
+    plot_data = None
+    freq_headers=None
+
+    #hack until higher up function can specify plotting source
+    if ".csv" in dat_filename or ".CSV" in dat_filename:
+        (freq_headers, timestamps, plot_data) = dataFromCSV(dat_filename)
+    if ".db" in dat_filename:
+        (freq_headers, timestamps, plot_data) = dataFromSQLite(dat_filename, table)
+        out = dat_filename + "_" + table + ".png"
+
+    if timestamps == None or plot_data == None or freq_headers == None:
+        print("No data to plot")
+        return
 
     #plot the data
     fig, ax = subplots()
-    pl = ax.pcolormesh(np_time_grid, freq_headers, plot_data, cmap='spectral', vmin=-100, vmax=-40)
+    pl = ax.pcolormesh(timestamps, freq_headers, plot_data, cmap='spectral', vmin=-100, vmax=-40)
     fig.colorbar(pl, orientation='vertical') #show a colorbar legend
 
     #add in title stuffs
@@ -92,8 +137,8 @@ def plotSpec(dat_filename):
     formatter = dates.AutoDateFormatter(locator)
     formatter.scaled[1/(24.*60.)] = '%H:%M:%S' # only show min and sec
     ax.xaxis.set_major_formatter(formatter)
-    tmin = min(np_time_grid)
-    tmax = max(np_time_grid)
+    tmin = min(timestamps)
+    tmax = max(timestamps)
     ax.set_xlim([tmin, tmax])
     fig.autofmt_xdate()
 
@@ -107,5 +152,8 @@ def plotSpec(dat_filename):
     savefig(out, format="png", dpi=200, transparent=True, bbox_inches='tight')
 
 
+
+#dataFromSQLite("403.db", "FAST_20141114L134906")
+plotSpec("403.db", "FAST_20141114L134906")
 #plotSpec("403-test-trace.csv")
-plotSpec("../wide.csv")
+#plotSpec("wide.csv")

@@ -29,6 +29,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import sys
 import csv
 import time
 import sqlite3
@@ -48,12 +49,22 @@ def datetime_from_string(t):
         print("Cannot convert %s: %s" % (t, e))
         return None
 
+def dataColumns(sqlite_fname):
+    rtn=[]
+    with sqlite3.connect(sqlite_fname) as db:
+        cur = db.cursor();
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        for i in cur.fetchall():
+            rtn.append(i[0])
+        rtn.remove("sweep_metadata")
+        #print(cur.fetchall())
+    return rtn;
+
 def dataFromSQLite(sqlite_fname, sql_table):
     """Returns a 2-tuple arrays of matplotlib time axis, and frequency data"""
     #PRAGMA table_info( your_table_name );
     with sqlite3.connect(sqlite_fname) as db:
         data={}
-
         cur = db.cursor();
         cur.execute("PRAGMA table_info( %s );" % sql_table) #get table structure
         headers = [row[1] for row in cur.fetchall()] 
@@ -103,20 +114,9 @@ def dataFromCSV(csv_fname):
         freq_headers = np.array(headers).astype(np.float)
         return (freq_headers, timestamps, plot_data);
 
-def plotSpec(dat_filename, table=""):
-    out = dat_filename + ".png"
-    timestamps = None
-    plot_data = None
-    freq_headers=None
-
-    #hack until higher up function can specify plotting source
-    if ".csv" in dat_filename or ".CSV" in dat_filename:
-        (freq_headers, timestamps, plot_data) = dataFromCSV(dat_filename)
-    if ".db" in dat_filename:
-        (freq_headers, timestamps, plot_data) = dataFromSQLite(dat_filename, table)
-        out = dat_filename + "_" + table + ".png"
-
-    if timestamps == None or plot_data == None or freq_headers == None:
+def plotData(output_fname, freq_headers, timestamps, plot_data):
+    """ """
+    if timestamps is None or plot_data is None or freq_headers is None:
         print("No data to plot")
         return
 
@@ -131,7 +131,6 @@ def plotSpec(dat_filename, table=""):
     ax.set_ylabel("Frequency (Hz)")
 
     #setup time axis stuff
-
     locator = dates.MinuteLocator(30) #markers start 30 mins past the hour
     ax.xaxis.set_major_locator(locator)
     formatter = dates.AutoDateFormatter(locator)
@@ -140,20 +139,43 @@ def plotSpec(dat_filename, table=""):
     tmin = min(timestamps)
     tmax = max(timestamps)
     ax.set_xlim([tmin, tmax])
+    ax.set_ylim([int(freq_headers[0]), int(freq_headers[-1])])
     fig.autofmt_xdate()
 
     #set image size and save it as a PNG
     fig.set_size_inches(18.5,10.5)
 
-    #savefig("out.png", dpi=None, facecolor='w', edgecolor='w',
-    #    orientation='portrait', papertype=None, format=None,
-    #    transparent=False, bbox_inches=None, pad_inches=0.1,
-    #    frameon=None)
-    savefig(out, format="png", dpi=200, transparent=True, bbox_inches='tight')
+    savefig(output_fname, format="png", dpi=200, transparent=True, bbox_inches='tight')
 
+def controller():
+    """Read command line opts and generate plots"""
+    if (len(sys.argv) == 1):
+        print("Usage: %s <list of .csv and .db files to plot from>" % (sys.argv[0]))
 
+    for f in sys.argv[1:]:
+        timestamps = None
+        plot_data = None
+        freq_headers=None
+
+        #hack until higher up function can specify plotting source
+        if f.lower().endswith(".csv"):
+            (freq_headers, timestamps, plot_data) = dataFromCSV(f)
+            print("Plotting from %s" % f)
+            out_fname  = f.replace(".csv", ".png")
+            plotData(out_fname, freq_headers, timestamps, plot_data)
+
+        if f.lower().endswith(".db"):
+            tables = dataColumns(f)
+            for table in tables:
+                print("Plotting from %s:%s" % (f, table))
+                (freq_headers, timestamps, plot_data) = dataFromSQLite(f, table)
+                out_fname = f + "_" + table + ".png"
+                plotData(out_fname, freq_headers, timestamps, plot_data)
+
+controller()
 
 #dataFromSQLite("403.db", "FAST_20141114L134906")
-plotSpec("403.db", "FAST_20141114L134906")
+#plotSpec("403.db", "FAST_20141114L134906")
 #plotSpec("403-test-trace.csv")
+#plotSpec("403-test-trace-3000.csv")
 #plotSpec("wide.csv")

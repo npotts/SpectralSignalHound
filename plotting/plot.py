@@ -33,10 +33,12 @@ import sys
 import csv
 import time
 import sqlite3
+from math import log10
 from sys import stdout
 from matplotlib.pylab import subplots, suptitle, savefig
 import numpy as np
 import matplotlib.dates as dates
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter, LogLocator, LogFormatter
 import datetime
 
 __all__= ["plotSpectrum"]
@@ -83,6 +85,7 @@ def dataFromSQLite(sqlite_fname, sql_table):
         plot_data=[data[col] for col in headers]
         plot_data = np.array(plot_data).astype(np.float)
         freq_headers = np.array(headers).astype(np.float)
+        freq_headers.sort()
         return (freq_headers, timestamps, plot_data);
     return (None, None, None)
 
@@ -112,6 +115,7 @@ def dataFromCSV(csv_fname):
             plot_data.append(data[col])
         plot_data = np.array(plot_data).astype(np.float)
         freq_headers = np.array(headers).astype(np.float)
+        freq_headers.sort()
         return (freq_headers, timestamps, plot_data);
 
 def plotData(output_fname, freq_headers, timestamps, plot_data):
@@ -119,6 +123,10 @@ def plotData(output_fname, freq_headers, timestamps, plot_data):
     if timestamps is None or plot_data is None or freq_headers is None:
         print("No data to plot")
         return
+    fmin = int(freq_headers[0])
+    fmax = int(freq_headers[-1])
+    tmin = min(timestamps)
+    tmax = max(timestamps)
 
     #plot the data
     fig, ax = subplots()
@@ -126,8 +134,8 @@ def plotData(output_fname, freq_headers, timestamps, plot_data):
     fig.colorbar(pl, orientation='vertical') #show a colorbar legend
 
     #add in title stuffs
-    suptitle("Spectrum")
-    ax.set_xlabel("Time")
+    suptitle("%s: RF Spectrum" % output_fname)
+    ax.set_xlabel("Sample Time")
     ax.set_ylabel("Frequency (Hz)")
 
     #setup time axis stuff
@@ -136,16 +144,34 @@ def plotData(output_fname, freq_headers, timestamps, plot_data):
     formatter = dates.AutoDateFormatter(locator)
     formatter.scaled[1/(24.*60.)] = '%H:%M:%S' # only show min and sec
     ax.xaxis.set_major_formatter(formatter)
-    tmin = min(timestamps)
-    tmax = max(timestamps)
     ax.set_xlim([tmin, tmax])
-    ax.set_ylim([int(freq_headers[0]), int(freq_headers[-1])])
+    ax.set_ylim([fmin, fmax])
+    ax.set_yscale('log')
+
+    num_major_ticks = 10;
+    num_minor_ticks_per_major = 5
+    majorLocator   = MultipleLocator((fmax - fmin)/num_major_ticks)
+    majorFormatter = FormatStrFormatter('%4.2f')
+    minorLocator   = MultipleLocator((fmax - fmin)/(num_major_ticks*num_minor_ticks_per_major))
+    #set linear ticks if we are less than a decade
+    
+    if log10(fmax) - log10(fmin) >= .9:
+        majorLocator   = LogLocator(base=10.0, subs=[1.0], numdecs=4, numticks=5)
+        majorFormatter = LogFormatter(base=10, labelOnlyBase=True)
+        minorLocator   = LogLocator(base=10.0, subs=[1.0], numdecs=4, numticks=5)    
+    
+    ax.yaxis.set_major_locator(majorLocator)
+    ax.yaxis.set_major_formatter(majorFormatter)
+    ax.yaxis.set_minor_locator(minorLocator);
+
+    ax.get_yaxis().set_tick_params(which='both', direction='out')
+
     fig.autofmt_xdate()
 
     #set image size and save it as a PNG
     fig.set_size_inches(18.5,10.5)
 
-    savefig(output_fname, format="png", dpi=200, transparent=True, bbox_inches='tight')
+    savefig(output_fname + ".png", format="png", dpi=200, transparent=True, bbox_inches='tight')
 
 def controller():
     """Read command line opts and generate plots"""
@@ -161,7 +187,7 @@ def controller():
         if f.lower().endswith(".csv"):
             (freq_headers, timestamps, plot_data) = dataFromCSV(f)
             print("Plotting from %s" % f)
-            out_fname  = f.replace(".csv", ".png")
+            out_fname  = f.replace(".csv", "")
             plotData(out_fname, freq_headers, timestamps, plot_data)
 
         if f.lower().endswith(".db"):
@@ -169,10 +195,12 @@ def controller():
             for table in tables:
                 print("Plotting from %s:%s" % (f, table))
                 (freq_headers, timestamps, plot_data) = dataFromSQLite(f, table)
-                out_fname = f + "_" + table + ".png"
+                out_fname = f + "_" + table
                 plotData(out_fname, freq_headers, timestamps, plot_data)
 
-controller()
+
+if __name__ == "__main__":
+    controller()
 
 #dataFromSQLite("403.db", "FAST_20141114L134906")
 #plotSpec("403.db", "FAST_20141114L134906")

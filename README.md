@@ -86,7 +86,7 @@ The following C++ libraries are required.  Some are included as git submodules.
 git clone --recursive git@github.com:npotts/SpectralSignalHound.git
 #This uses a static built library from the Kompex SQLite Wrapper.  This builds the library.
 cd SpectralSignalHound/ext/kompex
-./configure && make
+CFLAGS="-DSQLITE_MAX_COLUMN=4000" ./configure && make
 cd ../../
 make
 ```

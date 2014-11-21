@@ -43,7 +43,6 @@
 
 using namespace std;
 namespace SignalHound {
-  enum shverbosity {SILENT, NORMAL, GRATUITOUS};
   class SignalHoundCLI {
     public:
       SignalHoundCLI(bool &, /**< [out] true if cfg worked, false otherwise*/
@@ -54,13 +53,16 @@ namespace SignalHound {
     private:
       /** /brief Make sure all the variables the user can randomly input are within a valid range. */
       void forceRange();
+      /** /brief Parse Command Line Arguments and configure needed structures */
       bool parseArgs(int, char *[]);
+      /** /brief Start the sweep process based on configuration options */
       bool runSweep();
+      /** /brief Returns a human readable string based on an error number from the signal hound */
+      std::string shErrorMsg(int);
 
       std::string dbfname, csvfname, calout;
       bool preamp;
       bool extref;
-      int verbosity;
       int pause_between_traces;
       int repetitions;
       int mode;

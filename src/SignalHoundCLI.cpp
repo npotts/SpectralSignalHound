@@ -38,7 +38,7 @@ namespace SignalHound {
     el::Loggers::unregisterLogger("SignalHoundCLI");
   }
 
-  SignalHoundCLI::SignalHoundCLI(bool &ok, int argc, char *args[]): verbosity(NORMAL), sqlite(NULL), csv(NULL) {
+  SignalHoundCLI::SignalHoundCLI(bool &ok, int argc, char *args[]): sqlite(NULL), csv(NULL) {
     logger = getSignalHoundLogger("SignalHoundCLI");
     ok = parseArgs(argc, args);
 
@@ -64,7 +64,7 @@ namespace SignalHound {
     sighound.m_serialNumber = -1;
     int rtn = sighound.Initialize();
     CLOG(DEBUG, "SignalHoundCLI") << "Serial Number" << sighound.m_serialNumber << "Initialize() return:" << rtn;
-    rtn = (sighound.m_serialNumber == -1) ? 1 : rtn; //HACK.  SOmething is wrong with the API 
+    rtn = (sighound.m_serialNumber == -1) ? 1 : rtn; //HACK.  Something is wrong with the API 
 
     CLOG_IF( (rtn == 0), INFO,  "SignalHoundCLI") << "SignalHound Initialized";
     CLOG_IF( (rtn == 1), ERROR, "SignalHoundCLI") << "No SignalHound Found";
@@ -248,7 +248,7 @@ namespace SignalHound {
       //since we know the mode, we can accurately apply center and 
       if ((sighound.m_settings.m_sweepMode == HOUND_SWEEP_MODE_ZERO_SPAN) | (sighound.m_settings.m_sweepMode == HOUND_SWEEP_MODE_PHASE_NOISE))
         span = 0.0; //only care about center freq, zero out span
-      if ( (start > 1.0) && (stop > 1.0) && (stop > start) && (stop <= MAX_FREQ))
+      if ( (start >= 1.0) && (stop >= 1.0) && (stop > start) && (stop <= MAX_FREQ))
         sighound.SetStartAndStop(start, stop); //user specified start and stop values
       else
         sighound.SetCenterAndSpan(center, span); //default to using center and span values
@@ -281,7 +281,7 @@ namespace SignalHound {
       CLOG(DEBUG, "SignalHoundCLI") << "m_ZSMode " << sighound.m_settings.m_ZSMode;
       CLOG(DEBUG, "SignalHoundCLI") << "m_ZSSweepTime" << sighound.m_settings.m_ZSSweepTime;
 
-      if ((dbfname != "") && (csvfname != "")) {
+      if ((dbfname == "") && (csvfname == "")) {
         std::cerr << "Please select a backend storage device.  Missing either --db or --csv" << std::endl;
         return false;
       }
@@ -328,7 +328,7 @@ namespace SignalHound {
     sighound.SetupForSweep();
     double temp = sighound.ReadTemperature();
     int rtn = sighound.DoSweep();
-    CLOG_IF( (rtn != 0), DEBUG, "SignalHoundCLI") << "Error on sweep: " << rtn;
+    CLOG_IF( (rtn != 0), ERROR, "SignalHoundCLI") << "Error running sweep: " << shErrorMsg(rtn);
     if (rtn == 0) {
       std::vector<double> vals;
       vals.push_back(temp);
@@ -356,5 +356,21 @@ namespace SignalHound {
     std::this_thread::sleep_for(std::chrono::milliseconds(pause_between_traces));
     //usleep(pause_between_traces); //sleep between traces
     return (rtn == 0);
+  }
+
+  std::string SignalHoundCLI::shErrorMsg(int err) {
+    std::string rtn = "No Error";
+    switch(err) {
+      case  0: rtn = "No Error"; break;
+      case  1: rtn = "No Signal Hound Found.  The FTDI driver scanned the USB Ports for a Signal Hound device and found none."; break;
+      case  2: rtn = "Signal Hound port did not open.  The FTDI driver found a Signal Hound, but was unable to open the needed ports for data i/o"; break;
+      case  4: rtn = "Unexpected (leftover) USB Data"; break;
+      case  5: rtn = "Missing USB Data"; break;
+      case  8: rtn = "IF level too high - possible compression"; break;
+      case 98: rtn = "Signal Hound temperature correction file 'D<serial number>.bin' was not found."; break;
+      case 99: rtn = "Signal Hound calibration constants file '<serial number>.tep' was not found."; break;
+      default: rtn = "Some Unknown Error";
+    }
+    return rtn;
   }
 };

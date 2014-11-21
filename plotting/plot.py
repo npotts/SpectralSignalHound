@@ -59,35 +59,59 @@ def dataColumns(sqlite_fname):
         for i in cur.fetchall():
             rtn.append(i[0])
         rtn.remove("sweep_metadata")
-        #print(cur.fetchall())
     return rtn;
 
 def dataFromSQLite(sqlite_fname, sql_table):
     """Returns a 2-tuple arrays of matplotlib time axis, and frequency data"""
     #PRAGMA table_info( your_table_name );
+    freq_headers = None
+    timestamps = None
+    plot_data = None
+
     with sqlite3.connect(sqlite_fname) as db:
         data={}
         cur = db.cursor();
         cur.execute("PRAGMA table_info( %s );" % sql_table) #get table structure
-        headers = [row[1] for row in cur.fetchall()] 
-        headers.remove("rowid")
-        headers.remove("temperature")
-        headers.sort();
-        for col in headers:
-            data[col]=[]
-        q = "SELECT [%s] FROM %s" % ("],[".join(headers), sql_table) #form query to yank raw data
-        cur.execute(q);
-        for row in cur.fetchall():
-            for i in range(len(headers)):
-                data[headers[i]].append(row[i])
-        timestamps = np.array([dates.date2num(datetime_from_string(t)) for t in data["timestamp"]])
-        headers.remove("timestamp")
-        plot_data=[data[col] for col in headers]
-        plot_data = np.array(plot_data).astype(np.float)
+        headers = [row[1] for row in cur.fetchall()]
+        if "csv" in headers: #more than ~2k points per table
+            cur.execute("SELECT csv FROM [%s] WHERE header_row='true'" % sql_table)
+            headers = cur.fetchone()[0].split(",") #new headers are embedded in the data file
+            cur.execute("SELECT timestamp,csv FROM [%s] WHERE header_row='false'" % sql_table)
+            data.clear();
+            data["timestamp"] = []
+            for col in headers:
+                data[col]=[]
+            for row in cur.fetchall():
+                data["timestamp"].append(row[0])
+                fvalues = row[1].split(",")
+                for i in range(len(fvalues)):
+                    data[headers[i]].append(fvalues[i])
+        else:
+            headers.remove("rowid")
+            headers.remove("temperature")
+            headers.remove("header_row")
+            headers.sort();
+            for col in headers:
+                data[col]=[]
+            q = "SELECT [%s] FROM %s" % ("],[".join(headers), sql_table) #form query to yank raw data
+            cur.execute(q);
+            for row in cur.fetchall():
+                for i in range(len(headers)):
+                    data[headers[i]].append(row[i])
+            headers.remove("timestamp")
+    try:
         freq_headers = np.array(headers).astype(np.float)
         freq_headers.sort()
-        return (freq_headers, timestamps, plot_data);
-    return (None, None, None)
+        timestamps = np.array([dates.date2num(datetime_from_string(t)) for t in data["timestamp"]])
+        plot_data = [data[col] for col in headers]
+
+        plot_data = np.array(plot_data).astype(np.float)
+
+
+    except Exception as e:
+        print("Error: %s" % e)
+        pass
+    return (freq_headers, timestamps, plot_data)
 
 def dataFromCSV(csv_fname):
     """Returns a 2-tuple arrays of matplotlib time axis, and frequency"""

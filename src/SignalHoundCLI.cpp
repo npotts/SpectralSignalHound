@@ -341,7 +341,7 @@ namespace SignalHound {
           max_index=i;
         }
       }
-      std::cout << "\r" << "Sweeps Run# " << ++reps << " max Freq:" << sighound.GetFrequencyFromIdx(max_index) << " @ " << max << "dBm" << std::flush;
+      std::cout << "Sweeps Run# " << ++reps << " max Freq:" << sighound.GetFrequencyFromIdx(max_index) << " @ " << max << "dBm" << "\r" << std::flush;
       CLOG(DEBUG, "SignalHoundCLI") << " Vals Size:" << vals.size();
 
       if (sqlite) {

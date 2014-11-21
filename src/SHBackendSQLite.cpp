@@ -200,7 +200,7 @@ namespace SignalHound {
       data << "')";
     } else {
       data << "INSERT INTO [" << data_table << "] VALUES (NULL";
-      data << ", '" << currentTimeDate() <<  "', false";
+      data << ", '" << currentTimeDate() <<  "', 'false'";
       for(unsigned int i=0; i < dbvalues.size(); i++)
         data << ", " << dbvalues.at(i);
       data << ")";

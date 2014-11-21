@@ -152,8 +152,8 @@ namespace SignalHound {
       CLOG(WARNING, "SQLBackend") <<  "Sweep results contains" << sighound.m_traceSize + 4 << "columns, which is more than the default of 2000 that standard builds of SQLite supports. Because of this, the database schema will change slightly. You might want to consider using a CSV backend or changing the RBW / VBR.";
       std::string statement("CREATE TABLE [" + data_table + "] (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, header_row BOOLEAN DEFAULT FALSE NOT NULL, temperature DOUBLE NOT NULL, csv TEXT NOT NULL)");
       std::stringstream headers;
-      for(int i=0; i<sighound.m_traceSize; i++)
-        headers << (i == 0 ? "": ",") << (int) sighound.GetFrequencyFromIdx(i);
+      for (int i=0; i<sighound.m_traceSize; i++)
+        headers << (i == 0 ? "": ",") << (unsigned long long int) sighound.GetFrequencyFromIdx(i);
       std::string insheaders = "INSERT INTO [" + data_table + "] VALUES (NULL, '" + currentTimeDate() + "', 'true', 'N/A', '" + headers.str() + "')";
       try {
         // CLOG(DEBUG, "SQLBackend") << statement;
@@ -172,8 +172,8 @@ namespace SignalHound {
       CLOG(DEBUG, "SQLBackend") <<  "Sweep results contains" << sighound.m_traceSize + 4 << "columns.  Using normal storage mechanism.";
       std::stringstream create;
       create << "CREATE TABLE [" + data_table + "] (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, header_row BOOLEAN DEFAULT FALSE NOT NULL, temperature DOUBLE NOT NULL";
-      for(int i=0; i<sighound.m_traceSize; i++) {
-        create << ", [" << (int) sighound.GetFrequencyFromIdx(i) << "] DOUBLE";
+      for (int i=0; i<sighound.m_traceSize; i++) {
+        create << ", [" << (unsigned long long int) sighound.GetFrequencyFromIdx(i) << "] DOUBLE";
       }
       create << ")";
       try { //create new Table.  At this point, we should have the number of frequency

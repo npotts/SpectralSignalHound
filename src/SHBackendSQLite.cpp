@@ -146,6 +146,8 @@ namespace SignalHound {
       return false;
     }
 
+    CLOG_IF(sighound.m_traceSize + 3 > 2000, WARNING, "SQLBackend") <<  "Sweep results contains" << sighound.m_traceSize + 3 << "columns, which is more than the default of 2000 that standard builds of SQLite supports. Because of this, standard builds of software with SQLite might not be able to properly read the database file.  You might want to consider using a CSV backend or changing the RBW / VBR.";
+
     std::stringstream create;
     create << "CREATE TABLE [" + data_table + "] (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, temperature DOUBLE NOT NULL";
     for(int i=0; i<sighound.m_traceSize; i++) {

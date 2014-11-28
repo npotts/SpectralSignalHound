@@ -146,43 +146,22 @@ namespace SignalHound {
       return false;
     }
 
-    //CLOG_IF(sighound.m_traceSize + 3 > 2000, WARNING, "SQLBackend") <<  "Sweep results contains" << sighound.m_traceSize + 3 << "columns, which is more than the default of 2000 that standard builds of SQLite supports. Because of this, standard builds of software with SQLite might not be able to properly read the database file.  You might want to consider using a CSV backend or changing the RBW / VBR.";
-
-    if (sighound.m_traceSize + 4 > 2000) {
-      CLOG(WARNING, "SQLBackend") <<  "Sweep results contains" << sighound.m_traceSize + 4 << "columns, which is more than the default of 2000 that standard builds of SQLite supports. Because of this, the database schema will change slightly. You might want to consider using a CSV backend or changing the RBW / VBR.";
-      std::string statement("CREATE TABLE [" + data_table + "] (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, header_row BOOLEAN DEFAULT FALSE NOT NULL, temperature DOUBLE NOT NULL, csv TEXT NOT NULL)");
-      std::stringstream headers;
-      for (int i=0; i<sighound.m_traceSize; i++)
-        headers << (i == 0 ? "": ",") << (unsigned long long int) sighound.GetFrequencyFromIdx(i);
-      std::string insheaders = "INSERT INTO [" + data_table + "] VALUES (NULL, '" + currentTimeDate() + "', 'true', 'N/A', '" + headers.str() + "')";
-      try {
-        // CLOG(DEBUG, "SQLBackend") << statement;
-        // CLOG(DEBUG, "SQLBackend") << insheaders;
-        pStmt->SqlStatement(statement);
-        pStmt->BeginTransaction();
-        pStmt->Sql(insheaders);
-        pStmt->ExecuteAndFree();
-        pStmt->CommitTransaction();
-        return true;
-      } catch (Kompex::SQLiteException &e) {
-        CLOG(ERROR, "SQLBackend") << "Could not create needed sweep table";
-        CLOG(ERROR, "SQLBackend") << "Reason given:" << e.GetErrorDescription();
-      }
-    } else { //Less than 2000 columns
-      CLOG(DEBUG, "SQLBackend") <<  "Sweep results contains" << sighound.m_traceSize + 4 << "columns.  Using normal storage mechanism.";
-      std::stringstream create;
-      create << "CREATE TABLE [" + data_table + "] (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, header_row BOOLEAN DEFAULT FALSE NOT NULL, temperature DOUBLE NOT NULL";
-      for (int i=0; i<sighound.m_traceSize; i++) {
-        create << ", [" << (unsigned long long int) sighound.GetFrequencyFromIdx(i) << "] DOUBLE";
-      }
-      create << ")";
-      try { //create new Table.  At this point, we should have the number of frequency
-        pStmt->SqlStatement(create.str());
-        return true;
-      } catch (Kompex::SQLiteException &e) {
-        CLOG(ERROR, "SQLBackend") << "Could not create table" + data_table;
-        CLOG(ERROR, "SQLBackend") << "Reason given: " << e.GetErrorDescription();
-      }
+    CLOG(INFO, "SQLBackend") <<  "Each sweep will contain" << sighound.m_traceSize << "data points.";
+    std::string statement("CREATE TABLE [" + data_table + "] (rowid INTEGER NOT NULL PRIMARY KEY, timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, header_row BOOLEAN DEFAULT FALSE NOT NULL, temperature DOUBLE NOT NULL, csv TEXT NOT NULL)");
+    std::stringstream headers;
+    for (int i=0; i<sighound.m_traceSize; i++)
+      headers << (i == 0 ? "": ",") << (unsigned long long int) sighound.GetFrequencyFromIdx(i);
+    std::string insheaders = "INSERT INTO [" + data_table + "] VALUES (NULL, '" + currentTimeDate() + "', 'true', 'N/A', '" + headers.str() + "')";
+    try {
+      pStmt->SqlStatement(statement);
+      pStmt->BeginTransaction();
+      pStmt->Sql(insheaders);
+      pStmt->ExecuteAndFree();
+      pStmt->CommitTransaction();
+      return true;
+    } catch (Kompex::SQLiteException &e) {
+      CLOG(ERROR, "SQLBackend") << "Could not create needed sweep table";
+      CLOG(ERROR, "SQLBackend") << "Reason given:" << e.GetErrorDescription();
     }
     return false; //if we get here, something is wrong
   }
@@ -192,19 +171,11 @@ namespace SignalHound {
 
     //yeah yeah yeah. I know this may be open to SQL injection, but when working with large quanties, we 
     //can easily overflow the number of '?' binds allowed in stock SQLite instances
-    if (dbvalues.size() + 4 > 2000) {
-      //Large sweep, store whole result thing  into a single column.
-      data << "INSERT INTO [" << data_table << "] VALUES (NULL, '" << currentTimeDate() <<  "', 'false'," << dbvalues.at(0) << ", '";
-      for(unsigned int i=1; i < dbvalues.size(); i++)
-        data << (i == 1 ? "" : ", ") << dbvalues.at(i);
-      data << "')";
-    } else {
-      data << "INSERT INTO [" << data_table << "] VALUES (NULL";
-      data << ", '" << currentTimeDate() <<  "', 'false'";
-      for(unsigned int i=0; i < dbvalues.size(); i++)
-        data << ", " << dbvalues.at(i);
-      data << ")";
-    }
+    data << "INSERT INTO [" << data_table << "] VALUES (NULL, '" << currentTimeDate() <<  "', 'false'," << dbvalues.at(0) << ", '";
+    for(unsigned int i=1; i < dbvalues.size(); i++)
+      data << (i == 1 ? "" : ", ") << dbvalues.at(i);
+    data << "')";
+
     try {
       pStmt->BeginTransaction();
       pStmt->Sql(data.str());

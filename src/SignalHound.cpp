@@ -56,7 +56,7 @@ namespace SignalHound {
     int len = strftime( buf, sizeof( buf ), format, nowtm );
     //fill in microseconds
     if (include_ms)
-      len += snprintf( buf + len, sizeof( buf ) - len, ".%06d", ( unsigned int ) tv.tv_usec );
+      len += snprintf( buf + len, sizeof( buf ) - len, ".%03d", ( unsigned int ) (tv.tv_usec/1000) );
     std::string rtn = std::string( buf, len );
     return rtn;
   }

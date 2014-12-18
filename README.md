@@ -4,7 +4,7 @@ Spectral Signal Hound is a RF Spectral Logger using a SA44B Signal Hound Softwar
 Defined Radio (SDR).  There are two iterations of the software. The first is found
 in the  based off the Basic Linux API and only supports the intel architecture and 
 is present in the linuxapi branch.  The second iteration is based on the headless
-API and it supports the intel and arm architectures.  
+API and it supports the intel and arm architectures. 
 
 
 # [linuxapi](https://github.com/npotts/SpectralSignalHound/tree/linuxapi)
@@ -260,6 +260,44 @@ Sweep from 400 to 406MHz slowly saving the data to sweep.csv.
 sh-spectrum2 --start 400e6 --stop 406e6 --slow --csv sweep.csv
 
 ```
+
+#Troubleshooting
+
+##Linux udev rules and interferences.
+If you happen to get errors such as
+
+```sh
+	libusb couldn't open USB device /dev/bus/usb/001/004: Permission denied.
+	libusb requires write access to USB device nodes.
+	Aborted (core dumped)
+```
+or similar, you probably need to fix the permissions ```udev``` is applying when the 
+signal hound is enumerated.  One way is to create a file ```/etc/udev/rules.d/50-signal-hound.rules```
+with the following contents.  You may need to change the vid/pid from  0403:6010 to match your signal hound.
+The vid/pid can be found via ```lsusb``` among many different ways.
+
+```sh
+	# ACK.  Bad way to do it, but it should work (and make all USB more open to fiddling)
+	# SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", MODE="0666"
+	#
+	# Better way vid / pid of the SignalHound I have, improvise for yours
+	SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", MODE="0666"
+```
+
+Once this file is edited, simply reboot or issue ```udevadm control --reload-rules```
+
+## Unable to find <serial-number>.tep
+
+If you get an error like 
+
+```
+	2014-12-18 13:39:55.575 [SignalHoundCLI] ERROR [src/SignalHoundCLI.cpp:73] Unable to find calibration constants <serial-number>.tep 
+```
+
+You will (unfortunately) need to attach the signal hound to a windows machine after installing the
+stock application and run it once to grab the <serial-number>.tep and D<serial-number>.bin files. 
+These are use by the underlying library to properly apply calibration and temperature compensation, 
+which is a good thing.
 
 #[Plotting Tools](plotting/)
 

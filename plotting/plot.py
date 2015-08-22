@@ -144,7 +144,7 @@ def dataFromCSV(csv_fname):
 
 def plotData(output_fname, freq_headers, timestamps, plot_data):
     """ """
-    if timestamps is None or plot_data is None or freq_headers is None:
+    if timestamps is None or plot_data is None or freq_headers is None of len(timestamps) == 0:
         print("No data to plot")
         return
     fmin = int(freq_headers[0])
